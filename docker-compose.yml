@@ -1,0 +1,31 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: next_mongo
+    restart: always
+    ports:
+      - '27018:27017'
+    volumes:
+      - mongo_data:/data/db
+    command: ['--replSet', 'rs0', '--bind_ip_all']
+    healthcheck:
+      test:
+        ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  mongo-init:
+    image: mongo:7.0
+    container_name: mongo_init
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: 'no'
+    entrypoint: >
+      mongosh --host mongodb:27017
+      --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'next_mongo:27017' }] })"
+
+volumes:
+  mongo_data:
