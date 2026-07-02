@@ -23,6 +23,11 @@ export const AuditAction = {
   KYC_APPROVED: 'KYC_APPROVED',
   KYC_REJECTED: 'KYC_REJECTED',
 
+  // Catalog
+  CATALOG_ENTITY_CREATED: 'CATALOG_ENTITY_CREATED',
+  CATALOG_ENTITY_UPDATED: 'CATALOG_ENTITY_UPDATED',
+  CATALOG_ENTITY_DELETED: 'CATALOG_ENTITY_DELETED',
+
   // Order //
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

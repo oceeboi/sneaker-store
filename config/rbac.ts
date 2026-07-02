@@ -19,6 +19,16 @@ export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 // Naming is deliberate — resource = what, action = what you can do to it.
 
 export const Permission = {
+  // Catalog
+  BRANDS_READ: 'brands:read',
+  BRANDS_WRITE: 'brands:write',
+  CATEGORIES_READ: 'categories:read',
+  CATEGORIES_WRITE: 'categories:write',
+  COLLECTIONS_READ: 'collections:read',
+  COLLECTIONS_WRITE: 'collections:write',
+  PRODUCTS_READ: 'products:read',
+  PRODUCTS_WRITE: 'products:write',
+
   // Trades
   TRADES_READ: 'trades:read',
   TRADES_WRITE: 'trades:write',
