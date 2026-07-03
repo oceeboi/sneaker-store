@@ -10,12 +10,12 @@ import Brand from '@/models/Brand';
 import Category from '@/models/Category';
 import Collection from '@/models/Collection';
 import Product from '@/models/Product';
-import { updateProductSchema } from '@/schemas/catalog.schemas';
+import { createProductSchema, updateProductSchema } from '@/schemas/catalog.schemas';
 import { Gender, MediaType, ProductType } from '@/types/shared/product';
 import { slugify } from '@/utils/slug';
 
 const product_select_fields =
-  'name slug brand category collections productType gender description features media pricing seo tags active publishedAt createdAt updatedAt +pricing.costPrice';
+  'name slug brand category collections productType gender description features media sizes pricing.currency pricing.basePrice pricing.compareAtPrice +pricing.costPrice seo tags active publishedAt createdAt updatedAt';
 
 function format_validation_issues(issues: { path: PropertyKey[]; message: string }[]) {
   return validationErr(
@@ -36,6 +36,44 @@ function unique_string_array(values: string[] | undefined) {
 function unique_object_ids(values: string[] | undefined) {
   if (!values) return [];
   return [...new Set(values)];
+}
+
+function normalize_sizes(
+  sizes:
+    | {
+        size: string;
+        sku?: string | null;
+        barcode?: string | null;
+        stockQuantity: number;
+        active?: boolean;
+      }[]
+    | undefined
+) {
+  if (!sizes) return [];
+
+  const deduped = new Map<
+    string,
+    {
+      size: string;
+      sku: string | null;
+      barcode: string | null;
+      stockQuantity: number;
+      active: boolean;
+    }
+  >();
+
+  for (const size_option of sizes) {
+    const normalized_size_key = size_option.size.trim().toLowerCase();
+    deduped.set(normalized_size_key, {
+      size: size_option.size.trim(),
+      sku: size_option.sku?.trim() || null,
+      barcode: size_option.barcode?.trim() || null,
+      stockQuantity: size_option.stockQuantity,
+      active: size_option.active ?? true,
+    });
+  }
+
+  return [...deduped.values()];
 }
 
 function serialize_reference(reference: unknown) {
@@ -69,6 +107,13 @@ function serialize_product(product: {
   description: string | null;
   features: string[];
   media: { url: string; alt: string; type: MediaType; order: number }[];
+  sizes: {
+    size: string;
+    sku: string | null;
+    barcode: string | null;
+    stockQuantity: number;
+    active: boolean;
+  }[];
   pricing: {
     currency: string;
     basePrice: number;
@@ -98,6 +143,7 @@ function serialize_product(product: {
     description: product.description,
     features: product.features,
     media: product.media,
+    sizes: product.sizes,
     pricing: {
       currency: product.pricing.currency,
       basePrice: product.pricing.basePrice,
@@ -262,6 +308,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/prod
       order: media_item.order ?? index,
     }));
   }
+  if (payload.sizes !== undefined) {
+    found_product.sizes = normalize_sizes(payload.sizes);
+  }
   if (payload.pricing !== undefined) {
     found_product.pricing = {
       currency: (payload.pricing.currency ?? found_product.pricing.currency ?? 'NGN').toUpperCase(),
@@ -307,6 +356,114 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/prod
     oldValues: old_values,
     newValues: serialize_product(found_product),
     metadata: { resource: 'product' },
+    ...requestMeta(req),
+  });
+
+  return ok({ product: serialize_product(found_product) });
+}
+
+export async function PUT(req: NextRequest, ctx: RouteContext<'/api/admin/product/[id]'>) {
+  const authorization = await requirePermission(Permission.PRODUCTS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
+  const product_id = await get_product_id(ctx);
+  if (!Types.ObjectId.isValid(product_id)) {
+    return err('Invalid product id', 400);
+  }
+
+  const request_body = await req.json().catch(() => null);
+  const validation_result = createProductSchema.safeParse(request_body);
+
+  if (!validation_result.success) {
+    return format_validation_issues(validation_result.error.issues);
+  }
+
+  await connect_to_database();
+
+  const found_product = await Product.findById(product_id)
+    .select(product_select_fields)
+    .populate('brand', 'name slug')
+    .populate('category', 'name slug')
+    .populate('collections', 'name slug type');
+
+  if (!found_product) {
+    return err('Product not found', 404);
+  }
+
+  const payload = validation_result.data;
+  const manual_slug = payload.slug ? slugify(payload.slug) : slugify(payload.name);
+
+  const existing_slug_owner = await Product.findOne({
+    slug: manual_slug,
+    _id: { $ne: found_product._id },
+  })
+    .select('_id')
+    .lean();
+
+  if (existing_slug_owner) {
+    return err('A product with this slug already exists', 409);
+  }
+
+  const relation_check = await validate_product_relations({
+    brandId: payload.brand,
+    categoryId: payload.category,
+    collectionIds: unique_object_ids(payload.collections),
+  });
+
+  if (relation_check) {
+    return err(relation_check.error, relation_check.status);
+  }
+
+  const old_values = serialize_product(found_product);
+
+  found_product.name = payload.name;
+  found_product.slug = manual_slug;
+  found_product.brand = new Types.ObjectId(payload.brand);
+  found_product.category = new Types.ObjectId(payload.category);
+  found_product.collections = unique_object_ids(payload.collections).map(
+    (collection_id) => new Types.ObjectId(collection_id)
+  );
+  found_product.productType = payload.productType;
+  found_product.gender = payload.gender;
+  found_product.description = payload.description ?? null;
+  found_product.features = unique_string_array(payload.features);
+  found_product.media = (payload.media ?? []).map((media_item, index) => ({
+    url: media_item.url,
+    alt: media_item.alt,
+    type: media_item.type ?? MediaType.IMAGE,
+    order: media_item.order ?? index,
+  }));
+  found_product.sizes = normalize_sizes(payload.sizes);
+  found_product.pricing = {
+    currency: (payload.pricing.currency ?? 'NGN').toUpperCase(),
+    basePrice: payload.pricing.basePrice,
+    compareAtPrice: payload.pricing.compareAtPrice ?? null,
+    costPrice: payload.pricing.costPrice ?? null,
+  };
+  found_product.seo = {
+    title: payload.seo?.title ?? null,
+    description: payload.seo?.description ?? null,
+    keywords: unique_string_array(payload.seo?.keywords),
+  };
+  found_product.tags = unique_string_array(payload.tags);
+  found_product.active = payload.active ?? false;
+
+  await found_product.save();
+  await found_product.populate('brand', 'name slug');
+  await found_product.populate('category', 'name slug');
+  await found_product.populate('collections', 'name slug type');
+
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Product',
+    entityId: found_product._id.toString(),
+    oldValues: old_values,
+    newValues: serialize_product(found_product),
+    metadata: { resource: 'product', operation: 'PUT' },
     ...requestMeta(req),
   });
 

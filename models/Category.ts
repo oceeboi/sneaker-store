@@ -64,7 +64,7 @@ CategorySchema.index({ active: 1 });
 // ─── Pre-save: auto-generate slug ─────────────────────────────────────────────
 
 CategorySchema.pre('validate', async function () {
-  const should_generate_slug = (this.isNew || this.isModified('name')) && !this.isModified('slug');
+  const should_generate_slug = (this.isNew || this.isModified('name')) && !this.slug;
   if (!should_generate_slug) return;
 
   const CategoryModel = this.constructor as Model<ICategory>;

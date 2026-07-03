@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
   const created_collection = await Collection.create({
     name: payload.name,
-    slug: manual_slug,
+    ...(manual_slug ? { slug: manual_slug } : {}),
     description: payload.description ?? null,
     bannerImage: payload.bannerImage ?? null,
     active: payload.active ?? true,

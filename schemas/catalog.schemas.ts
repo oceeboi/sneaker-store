@@ -31,6 +31,14 @@ const product_pricing_schema = z.object({
   costPrice: z.coerce.number().min(0).nullable().optional(),
 });
 
+const product_size_schema = z.object({
+  size: z.string().trim().min(1, 'Size is required').max(20),
+  sku: z.string().trim().max(120).nullable().optional(),
+  barcode: z.string().trim().max(120).nullable().optional(),
+  stockQuantity: z.coerce.number().int().min(0, 'Stock quantity must be zero or greater'),
+  active: z.boolean().optional(),
+});
+
 const product_seo_schema = z.object({
   title: z.string().trim().max(70).nullable().optional(),
   description: z.string().trim().max(160).nullable().optional(),
@@ -116,14 +124,38 @@ const product_base_schema = z.object({
   description: nullable_trimmed_string,
   features: z.array(z.string().trim().min(1).max(200)).max(50).optional(),
   media: z.array(product_media_schema).max(20).optional(),
+  sizes: z.array(product_size_schema).max(100).optional(),
   pricing: product_pricing_schema,
   seo: product_seo_schema.optional(),
   tags: z.array(z.string().trim().min(1).max(50)).max(50).optional(),
   active: z.boolean().optional(),
 });
 
-export const createProductSchema = product_base_schema;
+export const createProductSchema = product_base_schema.superRefine((payload, ctx) => {
+  if (!payload.sizes || payload.sizes.length === 0) return;
+
+  const normalized_sizes = payload.sizes.map((item) => item.size.trim().toLowerCase());
+  if (new Set(normalized_sizes).size !== normalized_sizes.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['sizes'],
+      message: 'Product sizes must be unique',
+    });
+  }
+});
 
 export const updateProductSchema = product_base_schema
   .partial()
-  .refine((payload) => Object.keys(payload).length > 0, 'At least one field must be provided');
+  .refine((payload) => Object.keys(payload).length > 0, 'At least one field must be provided')
+  .superRefine((payload, ctx) => {
+    if (!payload.sizes || payload.sizes.length === 0) return;
+
+    const normalized_sizes = payload.sizes.map((item) => item.size.trim().toLowerCase());
+    if (new Set(normalized_sizes).size !== normalized_sizes.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['sizes'],
+        message: 'Product sizes must be unique',
+      });
+    }
+  });

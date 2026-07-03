@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
   const created_category = await Category.create({
     name: payload.name,
-    slug: manual_slug,
+    ...(manual_slug ? { slug: manual_slug } : {}),
     parent: payload.parent ?? null,
     image: payload.image ?? null,
     description: payload.description ?? null,

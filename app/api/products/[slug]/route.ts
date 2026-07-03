@@ -6,7 +6,7 @@ import Product from '@/models/Product';
 import { Gender, MediaType, ProductType } from '@/types/shared/product';
 
 const public_product_select_fields =
-  'name slug brand category collections productType gender description features media pricing seo tags active publishedAt createdAt updatedAt';
+  'name slug brand category collections productType gender description features media sizes pricing seo tags active publishedAt createdAt updatedAt';
 
 function serialize_reference(reference: unknown) {
   if (!reference) return null;
@@ -39,6 +39,13 @@ function serialize_product(product: {
   description: string | null;
   features: string[];
   media: { url: string; alt: string; type: MediaType; order: number }[];
+  sizes: {
+    size: string;
+    sku: string | null;
+    barcode: string | null;
+    stockQuantity: number;
+    active: boolean;
+  }[];
   pricing: {
     currency: string;
     basePrice: number;
@@ -66,6 +73,7 @@ function serialize_product(product: {
     description: product.description,
     features: product.features,
     media: product.media,
+    sizes: product.sizes,
     pricing: product.pricing,
     seo: product.seo,
     tags: product.tags,

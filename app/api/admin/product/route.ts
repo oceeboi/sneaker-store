@@ -15,7 +15,7 @@ import { CollectionType, Gender, MediaType, ProductType } from '@/types/shared/p
 import { slugify } from '@/utils/slug';
 
 const product_select_fields =
-  'name slug brand category collections productType gender description features media pricing seo tags active publishedAt createdAt updatedAt +pricing.costPrice';
+  'name slug brand category collections productType gender description features media sizes pricing.currency pricing.basePrice pricing.compareAtPrice +pricing.costPrice seo tags active publishedAt createdAt updatedAt';
 
 function format_validation_issues(issues: { path: PropertyKey[]; message: string }[]) {
   return validationErr(
@@ -37,6 +37,44 @@ function unique_string_array(values: string[] | undefined) {
 function unique_object_ids(values: string[] | undefined) {
   if (!values) return [];
   return [...new Set(values)];
+}
+
+function normalize_sizes(
+  sizes:
+    | {
+        size: string;
+        sku?: string | null;
+        barcode?: string | null;
+        stockQuantity: number;
+        active?: boolean;
+      }[]
+    | undefined
+) {
+  if (!sizes) return [];
+
+  const deduped = new Map<
+    string,
+    {
+      size: string;
+      sku: string | null;
+      barcode: string | null;
+      stockQuantity: number;
+      active: boolean;
+    }
+  >();
+
+  for (const size_option of sizes) {
+    const normalized_size_key = size_option.size.trim().toLowerCase();
+    deduped.set(normalized_size_key, {
+      size: size_option.size.trim(),
+      sku: size_option.sku?.trim() || null,
+      barcode: size_option.barcode?.trim() || null,
+      stockQuantity: size_option.stockQuantity,
+      active: size_option.active ?? true,
+    });
+  }
+
+  return [...deduped.values()];
 }
 
 function serialize_reference(reference: unknown) {
@@ -70,6 +108,13 @@ function serialize_product(product: {
   description: string | null;
   features: string[];
   media: { url: string; alt: string; type: MediaType; order: number }[];
+  sizes: {
+    size: string;
+    sku: string | null;
+    barcode: string | null;
+    stockQuantity: number;
+    active: boolean;
+  }[];
   pricing: {
     currency: string;
     basePrice: number;
@@ -99,6 +144,7 @@ function serialize_product(product: {
     description: product.description,
     features: product.features,
     media: product.media,
+    sizes: product.sizes,
     pricing: {
       currency: product.pricing.currency,
       basePrice: product.pricing.basePrice,
@@ -250,7 +296,7 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = validation_result.data;
-  const manual_slug = payload.slug ? slugify(payload.slug) : undefined;
+  const manual_slug = payload.slug ? slugify(payload.slug) : slugify(payload.name); // bug fixed: slugify is applied to the name if slug is not provided
   const collection_ids = unique_object_ids(payload.collections);
 
   await connect_to_database();
@@ -288,6 +334,7 @@ export async function POST(req: NextRequest) {
       type: media_item.type ?? MediaType.IMAGE,
       order: media_item.order ?? index,
     })),
+    sizes: normalize_sizes(payload.sizes),
     pricing: {
       currency: (payload.pricing.currency ?? 'NGN').toUpperCase(),
       basePrice: payload.pricing.basePrice,

@@ -62,6 +62,14 @@ export interface ISeo {
   keywords: string[];
 }
 
+export interface ISizeOption {
+  size: string; // e.g. "40", "41", "M", "L"
+  sku: string | null; // optional size-specific SKU
+  barcode: string | null; // optional GTIN/EAN/UPC
+  stockQuantity: number; // available quantity for this size
+  active: boolean; // disable specific size without deleting it
+}
+
 export interface IProductAttributes {
   [key: string]: string;
   // e.g. { size: "42", color: "White", material: "Leather" }

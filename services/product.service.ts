@@ -23,6 +23,14 @@ export type ProductPricing = {
   costPrice?: number | null;
 };
 
+export type ProductSize = {
+  size: string;
+  sku: string | null;
+  barcode: string | null;
+  stockQuantity: number;
+  active: boolean;
+};
+
 export type ProductSeo = {
   title: string | null;
   description: string | null;
@@ -41,6 +49,7 @@ export type ProductData = {
   description: string | null;
   features: string[];
   media: ProductMedia[];
+  sizes: ProductSize[];
   pricing: ProductPricing;
   seo: ProductSeo;
   tags: string[];
@@ -81,6 +90,42 @@ export type AdminProductListParams = {
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+
+export const ADMIN_PRODUCT_PAYLOAD_EXAMPLE: Record<string, unknown> = {
+  name: "Nike Air Force 1 '07",
+  brand: '<brandId>',
+  category: '<categoryId>',
+  collections: ['<collectionId>'],
+  productType: 'sneaker',
+  gender: 'unisex',
+  description: 'Classic everyday sneaker',
+  features: ['Leather upper', 'Rubber outsole'],
+  media: [
+    {
+      url: 'https://example.com/images/air-force-1.jpg',
+      alt: 'Nike Air Force 1 front view',
+      type: 'image',
+      order: 0,
+    },
+  ],
+  sizes: [
+    { size: '40', sku: 'AF1-40', barcode: null, stockQuantity: 12, active: true },
+    { size: '41', sku: 'AF1-41', barcode: null, stockQuantity: 8, active: true },
+  ],
+  pricing: {
+    currency: 'NGN',
+    basePrice: 185000,
+    compareAtPrice: 210000,
+    costPrice: 120000,
+  },
+  seo: {
+    title: "Nike Air Force 1 '07",
+    description: "Shop the Nike Air Force 1 '07 sneaker.",
+    keywords: ['nike', 'air force 1', 'sneaker'],
+  },
+  tags: ['lifestyle', 'low-top'],
+  active: true,
+};
 
 type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
 
@@ -159,6 +204,14 @@ export class ProductService {
 
   private async patch<T>(path: string, body?: unknown): Promise<T> {
     const response = await http.patch(path, {
+      timeout: REQUEST_TIMEOUT_MS,
+      ...(body !== undefined && { json: body }),
+    });
+    return response.json() as Promise<T>;
+  }
+
+  private async put<T>(path: string, body?: unknown): Promise<T> {
+    const response = await http.put(path, {
       timeout: REQUEST_TIMEOUT_MS,
       ...(body !== undefined && { json: body }),
     });
@@ -307,6 +360,36 @@ export class ProductService {
       return {
         success: false,
         message: ProductService.fromHttpError(error, 'Failed to update product.', {
+          404: 'Product or related catalog record not found.',
+          409: 'A product with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async replaceAdminProduct(
+    productId: string,
+    data: CreateProductInput
+  ): Promise<ServiceResult<ProductData>> {
+    const normalized_product_id = productId.trim();
+    if (!normalized_product_id) {
+      return { success: false, message: 'Product id is required.' };
+    }
+
+    const validation = ProductService.validate(createProductSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.put<{ data: { product: ProductData } }>(
+        `admin/product/${encodeURIComponent(normalized_product_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.product };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to replace product.', {
           404: 'Product or related catalog record not found.',
           409: 'A product with this slug already exists.',
         }),

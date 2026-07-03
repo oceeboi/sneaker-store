@@ -98,7 +98,7 @@ CollectionSchema.index({ active: 1, sortOrder: 1 });
 // ─── Pre-save: auto-generate slug ─────────────────────────────────────────────
 
 CollectionSchema.pre('validate', async function () {
-  const should_generate_slug = (this.isNew || this.isModified('name')) && !this.isModified('slug');
+  const should_generate_slug = (this.isNew || this.isModified('name')) && !this.slug;
   if (!should_generate_slug) return;
 
   const CollectionModel = this.constructor as Model<ICollection>;

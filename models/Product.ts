@@ -1,5 +1,13 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
-import { Gender, IMedia, IPricing, ISeo, MediaType, ProductType } from '../types/shared/product';
+import {
+  Gender,
+  IMedia,
+  IPricing,
+  ISeo,
+  ISizeOption,
+  MediaType,
+  ProductType,
+} from '../types/shared/product';
 import { generateUniqueSlug } from '../utils/slug';
 
 // ─── Interface ────────────────────────────────────────────────────────────────
@@ -21,6 +29,7 @@ export interface IProduct extends Document {
   features: string[]; // bullet-point feature list
 
   media: IMedia[];
+  sizes: ISizeOption[];
   pricing: IPricing;
   seo: ISeo;
   tags: string[];
@@ -64,6 +73,17 @@ const PricingSchema = new Schema<IPricing>(
   { _id: false }
 );
 
+const SizeOptionSchema = new Schema<ISizeOption>(
+  {
+    size: { type: String, required: true, trim: true, maxlength: 20 },
+    sku: { type: String, default: null, trim: true, maxlength: 120 },
+    barcode: { type: String, default: null, trim: true, maxlength: 120 },
+    stockQuantity: { type: Number, required: true, min: 0, default: 0 },
+    active: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
 const SeoSchema = new Schema<ISeo>(
   {
     title: { type: String, trim: true, default: null, maxlength: 70 },
@@ -88,6 +108,9 @@ const ProductSchema = new Schema<IProduct>(
       type: String,
       unique: true,
       index: true,
+      required: [true, 'Product slug is required'],
+      trim: true,
+      lowercase: true,
     },
 
     brand: {
@@ -139,6 +162,18 @@ const ProductSchema = new Schema<IProduct>(
       },
     },
 
+    sizes: {
+      type: [SizeOptionSchema],
+      default: [],
+      validate: {
+        validator: (v: ISizeOption[]) => {
+          const normalized_sizes = v.map((item) => item.size.trim().toLowerCase());
+          return new Set(normalized_sizes).size === normalized_sizes.length;
+        },
+        message: 'Product sizes must be unique',
+      },
+    },
+
     pricing: {
       type: PricingSchema,
       required: [true, 'Pricing is required'],
@@ -185,7 +220,7 @@ ProductSchema.index({ name: 'text', description: 'text', tags: 'text' });
 // ─── Pre-validate: auto-generate slug ────────────────────────────────────────
 
 ProductSchema.pre('validate', async function () {
-  const should_generate_slug = (this.isNew || this.isModified('name')) && !this.isModified('slug');
+  const should_generate_slug = (this.isNew || this.isModified('name')) && !this.slug;
   if (!should_generate_slug) return;
 
   const ProductModel = this.constructor as Model<IProduct>;
