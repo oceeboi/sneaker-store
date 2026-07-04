@@ -46,6 +46,8 @@ function normalize_sizes(
         sku?: string | null;
         barcode?: string | null;
         stockQuantity: number;
+        reservedQuantity?: number;
+        reorderLevel?: number;
         active?: boolean;
       }[]
     | undefined
@@ -59,6 +61,8 @@ function normalize_sizes(
       sku: string | null;
       barcode: string | null;
       stockQuantity: number;
+      reservedQuantity: number;
+      reorderLevel: number;
       active: boolean;
     }
   >();
@@ -70,6 +74,8 @@ function normalize_sizes(
       sku: size_option.sku?.trim() || null,
       barcode: size_option.barcode?.trim() || null,
       stockQuantity: size_option.stockQuantity,
+      reservedQuantity: size_option.reservedQuantity ?? 0,
+      reorderLevel: size_option.reorderLevel ?? 0,
       active: size_option.active ?? true,
     });
   }
@@ -113,6 +119,8 @@ function serialize_product(product: {
     sku: string | null;
     barcode: string | null;
     stockQuantity: number;
+    reservedQuantity: number;
+    reorderLevel: number;
     active: boolean;
   }[];
   pricing: {
@@ -144,7 +152,10 @@ function serialize_product(product: {
     description: product.description,
     features: product.features,
     media: product.media,
-    sizes: product.sizes,
+    sizes: product.sizes.map((size_option) => ({
+      ...size_option,
+      availableQuantity: Math.max(0, size_option.stockQuantity - size_option.reservedQuantity),
+    })),
     pricing: {
       currency: product.pricing.currency,
       basePrice: product.pricing.basePrice,
@@ -296,7 +307,7 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = validation_result.data;
-  const manual_slug = payload.slug ? slugify(payload.slug) : slugify(payload.name); // bug fixed: slugify is applied to the name if slug is not provided
+  let manual_slug = payload.slug ? slugify(payload.slug) : slugify(payload.name); // bug fixed: slugify is applied to the name if slug is not provided
   const collection_ids = unique_object_ids(payload.collections);
 
   await connect_to_database();
@@ -304,7 +315,11 @@ export async function POST(req: NextRequest) {
   if (manual_slug) {
     const existing_slug_owner = await Product.findOne({ slug: manual_slug }).select('_id').lean();
     if (existing_slug_owner) {
-      return err('A product with this slug already exists', 409);
+      // return err('A product with this slug already exists', 409);
+
+      // create a unique slug by appending a random string to the end of the slug
+      const random_string = Math.random().toString(36).substring(2, 8);
+      manual_slug = `${manual_slug}-${random_string}`;
     }
   }
 

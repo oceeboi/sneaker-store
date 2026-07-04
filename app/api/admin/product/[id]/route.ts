@@ -45,6 +45,8 @@ function normalize_sizes(
         sku?: string | null;
         barcode?: string | null;
         stockQuantity: number;
+        reservedQuantity?: number;
+        reorderLevel?: number;
         active?: boolean;
       }[]
     | undefined
@@ -58,6 +60,8 @@ function normalize_sizes(
       sku: string | null;
       barcode: string | null;
       stockQuantity: number;
+      reservedQuantity: number;
+      reorderLevel: number;
       active: boolean;
     }
   >();
@@ -69,6 +73,8 @@ function normalize_sizes(
       sku: size_option.sku?.trim() || null,
       barcode: size_option.barcode?.trim() || null,
       stockQuantity: size_option.stockQuantity,
+      reservedQuantity: size_option.reservedQuantity ?? 0,
+      reorderLevel: size_option.reorderLevel ?? 0,
       active: size_option.active ?? true,
     });
   }
@@ -112,6 +118,8 @@ function serialize_product(product: {
     sku: string | null;
     barcode: string | null;
     stockQuantity: number;
+    reservedQuantity: number;
+    reorderLevel: number;
     active: boolean;
   }[];
   pricing: {
@@ -143,7 +151,10 @@ function serialize_product(product: {
     description: product.description,
     features: product.features,
     media: product.media,
-    sizes: product.sizes,
+    sizes: product.sizes.map((size_option) => ({
+      ...size_option,
+      availableQuantity: Math.max(0, size_option.stockQuantity - size_option.reservedQuantity),
+    })),
     pricing: {
       currency: product.pricing.currency,
       basePrice: product.pricing.basePrice,

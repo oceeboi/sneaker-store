@@ -79,6 +79,8 @@ const SizeOptionSchema = new Schema<ISizeOption>(
     sku: { type: String, default: null, trim: true, maxlength: 120 },
     barcode: { type: String, default: null, trim: true, maxlength: 120 },
     stockQuantity: { type: Number, required: true, min: 0, default: 0 },
+    reservedQuantity: { type: Number, required: true, min: 0, default: 0 },
+    reorderLevel: { type: Number, required: true, min: 0, default: 0 },
     active: { type: Boolean, default: true },
   },
   { _id: false }
@@ -168,9 +170,12 @@ const ProductSchema = new Schema<IProduct>(
       validate: {
         validator: (v: ISizeOption[]) => {
           const normalized_sizes = v.map((item) => item.size.trim().toLowerCase());
-          return new Set(normalized_sizes).size === normalized_sizes.length;
+          const has_unique_sizes = new Set(normalized_sizes).size === normalized_sizes.length;
+          if (!has_unique_sizes) return false;
+
+          return v.every((item) => item.reservedQuantity <= item.stockQuantity);
         },
-        message: 'Product sizes must be unique',
+        message: 'Product sizes must be unique and reserved stock cannot exceed total stock',
       },
     },
 

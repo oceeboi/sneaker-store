@@ -45,6 +45,8 @@ function serialize_product(product: {
     sku: string | null;
     barcode: string | null;
     stockQuantity: number;
+    reservedQuantity: number;
+    reorderLevel: number;
     active: boolean;
   }[];
   pricing: {
@@ -74,7 +76,10 @@ function serialize_product(product: {
     description: product.description,
     features: product.features,
     media: product.media,
-    sizes: product.sizes,
+    sizes: product.sizes.map((size_option) => ({
+      ...size_option,
+      availableQuantity: Math.max(0, size_option.stockQuantity - size_option.reservedQuantity),
+    })),
     pricing: {
       currency: product.pricing.currency,
       basePrice: product.pricing.basePrice,

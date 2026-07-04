@@ -1,5 +1,15 @@
 import http from '@/lib/ky';
-import { createProductSchema, updateProductSchema } from '@/schemas/catalog.schemas';
+import {
+  createBrandSchema,
+  createCategorySchema,
+  createCollectionSchema,
+  createProductSchema,
+  updateBrandSchema,
+  updateCategorySchema,
+  updateCollectionSchema,
+  updateProductSchema,
+} from '@/schemas/catalog.schemas';
+import { CollectionType, InventoryMovementReason } from '@/types/shared/product';
 import { HTTPError } from 'ky';
 import { z } from 'zod';
 
@@ -28,6 +38,9 @@ export type ProductSize = {
   sku: string | null;
   barcode: string | null;
   stockQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  reorderLevel: number;
   active: boolean;
 };
 
@@ -66,6 +79,86 @@ export type ProductPagination = {
   totalPages: number;
 };
 
+export type BrandData = {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  description: string | null;
+  website: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CategoryData = {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+  image: string | null;
+  description: string | null;
+  sortOrder: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CollectionRuleData = {
+  field: 'tags' | 'brand' | 'category' | 'gender' | 'productType';
+  operator: 'equals' | 'contains' | 'greater_than' | 'less_than';
+  value: string;
+};
+
+export type CollectionData = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  bannerImage: string | null;
+  active: boolean;
+  type: string;
+  rules: CollectionRuleData[];
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type InventoryMovementData = {
+  id: string;
+  size: string;
+  reason: string;
+  quantityDelta: number;
+  stockBefore: number;
+  stockAfter: number;
+  reservedBefore: number;
+  reservedAfter: number;
+  referenceType: string | null;
+  referenceId: string | null;
+  note: string | null;
+  actorId: string | null;
+  createdAt: Date;
+};
+
+export type ProductInventorySnapshot = {
+  size: string;
+  sku: string | null;
+  barcode: string | null;
+  stockQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  reorderLevel: number;
+  active: boolean;
+  isLowStock: boolean;
+};
+
+export type ProductInventoryData = {
+  id: string;
+  name: string;
+  slug: string;
+  sizes: ProductInventorySnapshot[];
+};
+
 export type PublicProductListParams = {
   search?: string;
   brand?: string;
@@ -88,8 +181,51 @@ export type AdminProductListParams = {
   gender?: string;
 };
 
+export type AdminBrandListParams = {
+  search?: string;
+  active?: boolean;
+};
+
+export type AdminCategoryListParams = {
+  search?: string;
+  active?: boolean;
+  parent?: string | null;
+};
+
+export type AdminCollectionListParams = {
+  search?: string;
+  active?: boolean;
+  type?: string;
+};
+
+export type AdminInventoryListParams = {
+  limit?: number;
+};
+
+export type AdminInventoryOperationInput = {
+  operation: 'adjust_add' | 'adjust_remove' | 'reserve' | 'release' | 'fulfill';
+  size: string;
+  quantity: number;
+  note?: string | null;
+  referenceId?: string | null;
+  referenceType?: string | null;
+};
+
+export type AdminInventoryOperationResult = {
+  operation: string;
+  productId: string;
+  productName: string;
+  size: string;
+};
+
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type CreateBrandInput = z.infer<typeof createBrandSchema>;
+export type UpdateBrandInput = z.infer<typeof updateBrandSchema>;
+export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
+export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+export type CreateCollectionInput = z.infer<typeof createCollectionSchema>;
+export type UpdateCollectionInput = z.infer<typeof updateCollectionSchema>;
 
 export const ADMIN_PRODUCT_PAYLOAD_EXAMPLE: Record<string, unknown> = {
   name: "Nike Air Force 1 '07",
@@ -175,7 +311,9 @@ export class ProductService {
     return { success: true, data: parsed.data };
   }
 
-  private buildQuery(params?: Record<string, string | number | boolean | undefined>): string {
+  private buildQuery(
+    params?: Record<string, string | number | boolean | null | undefined>
+  ): string {
     if (!params) return '';
 
     const search_params = new URLSearchParams();
@@ -417,6 +555,536 @@ export class ProductService {
         }),
       };
     }
+  }
+
+  async getAdminBrands(params?: AdminBrandListParams): Promise<
+    ServiceResult<{
+      brands: BrandData[];
+      total: number;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          brands: BrandData[];
+          total: number;
+        };
+      }>(`admin/brand${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin brand list.'),
+      };
+    }
+  }
+
+  async getAdminBrandById(brandId: string): Promise<ServiceResult<BrandData>> {
+    const normalized_brand_id = brandId.trim();
+    if (!normalized_brand_id) {
+      return { success: false, message: 'Brand id is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { brand: BrandData } }>(
+        `admin/brand/${encodeURIComponent(normalized_brand_id)}`
+      );
+
+      return { success: true, data: response.data.brand };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin brand.', {
+          404: 'Brand not found.',
+        }),
+      };
+    }
+  }
+
+  async createAdminBrand(data: CreateBrandInput): Promise<ServiceResult<BrandData>> {
+    const validation = ProductService.validate(createBrandSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.post<{ data: { brand: BrandData } }>(
+        'admin/brand',
+        validation.data
+      );
+
+      return { success: true, data: response.data.brand };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to create brand.', {
+          409: 'A brand with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async updateAdminBrand(
+    brandId: string,
+    data: UpdateBrandInput
+  ): Promise<ServiceResult<BrandData>> {
+    const normalized_brand_id = brandId.trim();
+    if (!normalized_brand_id) {
+      return { success: false, message: 'Brand id is required.' };
+    }
+
+    const validation = ProductService.validate(updateBrandSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.patch<{ data: { brand: BrandData } }>(
+        `admin/brand/${encodeURIComponent(normalized_brand_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.brand };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to update brand.', {
+          404: 'Brand not found.',
+          409: 'A brand with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async replaceAdminBrand(
+    brandId: string,
+    data: CreateBrandInput
+  ): Promise<ServiceResult<BrandData>> {
+    const normalized_brand_id = brandId.trim();
+    if (!normalized_brand_id) {
+      return { success: false, message: 'Brand id is required.' };
+    }
+
+    const validation = ProductService.validate(createBrandSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.put<{ data: { brand: BrandData } }>(
+        `admin/brand/${encodeURIComponent(normalized_brand_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.brand };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to replace brand.', {
+          404: 'Brand not found.',
+          409: 'A brand with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async deleteAdminBrand(brandId: string): Promise<ServiceResult<{ deleted: boolean }>> {
+    const normalized_brand_id = brandId.trim();
+    if (!normalized_brand_id) {
+      return { success: false, message: 'Brand id is required.' };
+    }
+
+    try {
+      const response = await this.delete<{ data: { deleted: boolean } }>(
+        `admin/brand/${encodeURIComponent(normalized_brand_id)}`
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to delete brand.', {
+          404: 'Brand not found.',
+          409: 'This brand is still referenced by products.',
+        }),
+      };
+    }
+  }
+
+  async getAdminCategories(params?: AdminCategoryListParams): Promise<
+    ServiceResult<{
+      categories: CategoryData[];
+      total: number;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          categories: CategoryData[];
+          total: number;
+        };
+      }>(`admin/category${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin category list.'),
+      };
+    }
+  }
+
+  async getAdminCategoryById(categoryId: string): Promise<ServiceResult<CategoryData>> {
+    const normalized_category_id = categoryId.trim();
+    if (!normalized_category_id) {
+      return { success: false, message: 'Category id is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { category: CategoryData } }>(
+        `admin/category/${encodeURIComponent(normalized_category_id)}`
+      );
+
+      return { success: true, data: response.data.category };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin category.', {
+          404: 'Category not found.',
+        }),
+      };
+    }
+  }
+
+  async createAdminCategory(data: CreateCategoryInput): Promise<ServiceResult<CategoryData>> {
+    const validation = ProductService.validate(createCategorySchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.post<{ data: { category: CategoryData } }>(
+        'admin/category',
+        validation.data
+      );
+
+      return { success: true, data: response.data.category };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to create category.', {
+          404: 'Parent category not found.',
+          409: 'A category with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async updateAdminCategory(
+    categoryId: string,
+    data: UpdateCategoryInput
+  ): Promise<ServiceResult<CategoryData>> {
+    const normalized_category_id = categoryId.trim();
+    if (!normalized_category_id) {
+      return { success: false, message: 'Category id is required.' };
+    }
+
+    const validation = ProductService.validate(updateCategorySchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.patch<{ data: { category: CategoryData } }>(
+        `admin/category/${encodeURIComponent(normalized_category_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.category };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to update category.', {
+          404: 'Category or parent category not found.',
+          409: 'A category with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async replaceAdminCategory(
+    categoryId: string,
+    data: CreateCategoryInput
+  ): Promise<ServiceResult<CategoryData>> {
+    const normalized_category_id = categoryId.trim();
+    if (!normalized_category_id) {
+      return { success: false, message: 'Category id is required.' };
+    }
+
+    const validation = ProductService.validate(createCategorySchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.put<{ data: { category: CategoryData } }>(
+        `admin/category/${encodeURIComponent(normalized_category_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.category };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to replace category.', {
+          404: 'Category or parent category not found.',
+          409: 'A category with this slug already exists.',
+        }),
+      };
+    }
+  }
+
+  async deleteAdminCategory(categoryId: string): Promise<ServiceResult<{ deleted: boolean }>> {
+    const normalized_category_id = categoryId.trim();
+    if (!normalized_category_id) {
+      return { success: false, message: 'Category id is required.' };
+    }
+
+    try {
+      const response = await this.delete<{ data: { deleted: boolean } }>(
+        `admin/category/${encodeURIComponent(normalized_category_id)}`
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to delete category.', {
+          404: 'Category not found.',
+          409: 'This category is still referenced by child categories or products.',
+        }),
+      };
+    }
+  }
+
+  async getAdminCollections(params?: AdminCollectionListParams): Promise<
+    ServiceResult<{
+      collections: CollectionData[];
+      total: number;
+    }>
+  > {
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          collections: CollectionData[];
+          total: number;
+        };
+      }>(`admin/collection${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin collection list.'),
+      };
+    }
+  }
+
+  async getAdminCollectionById(collectionId: string): Promise<ServiceResult<CollectionData>> {
+    const normalized_collection_id = collectionId.trim();
+    if (!normalized_collection_id) {
+      return { success: false, message: 'Collection id is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { collection: CollectionData } }>(
+        `admin/collection/${encodeURIComponent(normalized_collection_id)}`
+      );
+
+      return { success: true, data: response.data.collection };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch admin collection.', {
+          404: 'Collection not found.',
+        }),
+      };
+    }
+  }
+
+  async createAdminCollection(data: CreateCollectionInput): Promise<ServiceResult<CollectionData>> {
+    const validation = ProductService.validate(createCollectionSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.post<{ data: { collection: CollectionData } }>(
+        'admin/collection',
+        validation.data
+      );
+
+      return { success: true, data: response.data.collection };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to create collection.', {
+          409: 'A collection with this slug already exists.',
+          422: 'Smart collections require at least one rule.',
+        }),
+      };
+    }
+  }
+
+  async updateAdminCollection(
+    collectionId: string,
+    data: UpdateCollectionInput
+  ): Promise<ServiceResult<CollectionData>> {
+    const normalized_collection_id = collectionId.trim();
+    if (!normalized_collection_id) {
+      return { success: false, message: 'Collection id is required.' };
+    }
+
+    const validation = ProductService.validate(updateCollectionSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.patch<{ data: { collection: CollectionData } }>(
+        `admin/collection/${encodeURIComponent(normalized_collection_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.collection };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to update collection.', {
+          404: 'Collection not found.',
+          409: 'A collection with this slug already exists.',
+          422: 'Smart collections require at least one rule.',
+        }),
+      };
+    }
+  }
+
+  async replaceAdminCollection(
+    collectionId: string,
+    data: CreateCollectionInput
+  ): Promise<ServiceResult<CollectionData>> {
+    const normalized_collection_id = collectionId.trim();
+    if (!normalized_collection_id) {
+      return { success: false, message: 'Collection id is required.' };
+    }
+
+    const validation = ProductService.validate(createCollectionSchema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.put<{ data: { collection: CollectionData } }>(
+        `admin/collection/${encodeURIComponent(normalized_collection_id)}`,
+        validation.data
+      );
+
+      return { success: true, data: response.data.collection };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to replace collection.', {
+          404: 'Collection not found.',
+          409: 'A collection with this slug already exists.',
+          422: 'Smart collections require at least one rule.',
+        }),
+      };
+    }
+  }
+
+  async deleteAdminCollection(collectionId: string): Promise<ServiceResult<{ deleted: boolean }>> {
+    const normalized_collection_id = collectionId.trim();
+    if (!normalized_collection_id) {
+      return { success: false, message: 'Collection id is required.' };
+    }
+
+    try {
+      const response = await this.delete<{ data: { deleted: boolean } }>(
+        `admin/collection/${encodeURIComponent(normalized_collection_id)}`
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to delete collection.', {
+          404: 'Collection not found.',
+          409: 'This collection is still referenced by products.',
+        }),
+      };
+    }
+  }
+
+  async getAdminProductInventory(
+    productId: string,
+    params?: AdminInventoryListParams
+  ): Promise<ServiceResult<{ product: ProductInventoryData; movements: InventoryMovementData[] }>> {
+    const normalized_product_id = productId.trim();
+    if (!normalized_product_id) {
+      return { success: false, message: 'Product id is required.' };
+    }
+
+    try {
+      const query = this.buildQuery(params);
+      const response = await this.get<{
+        data: {
+          product: ProductInventoryData;
+          movements: InventoryMovementData[];
+        };
+      }>(`admin/product/${encodeURIComponent(normalized_product_id)}/inventory${query}`);
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to fetch product inventory.', {
+          404: 'Product not found.',
+        }),
+      };
+    }
+  }
+
+  async mutateAdminProductInventory(
+    productId: string,
+    data: AdminInventoryOperationInput
+  ): Promise<ServiceResult<AdminInventoryOperationResult>> {
+    const normalized_product_id = productId.trim();
+    if (!normalized_product_id) {
+      return { success: false, message: 'Product id is required.' };
+    }
+
+    const inventory_operation_schema = z.object({
+      operation: z.enum(['adjust_add', 'adjust_remove', 'reserve', 'release', 'fulfill']),
+      size: z.string().trim().min(1, 'Size is required.'),
+      quantity: z.number().int().positive('Quantity must be a positive integer.'),
+      note: z.string().trim().nullable().optional(),
+      referenceId: z.string().trim().nullable().optional(),
+      referenceType: z.string().trim().nullable().optional(),
+    });
+
+    const validation = ProductService.validate(inventory_operation_schema, data);
+    if (!validation.success) return validation;
+
+    try {
+      const response = await this.post<{ data: AdminInventoryOperationResult }>(
+        `admin/product/${encodeURIComponent(normalized_product_id)}/inventory`,
+        validation.data
+      );
+
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: ProductService.fromHttpError(error, 'Failed to update product inventory.', {
+          404: 'Product not found.',
+          422: 'Invalid inventory operation payload.',
+        }),
+      };
+    }
+  }
+
+  getInventoryMovementReasons(): string[] {
+    return Object.values(InventoryMovementReason);
+  }
+
+  getCollectionTypes(): string[] {
+    return Object.values(CollectionType);
   }
 }
 

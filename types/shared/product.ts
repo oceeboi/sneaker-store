@@ -67,6 +67,8 @@ export interface ISizeOption {
   sku: string | null; // optional size-specific SKU
   barcode: string | null; // optional GTIN/EAN/UPC
   stockQuantity: number; // available quantity for this size
+  reservedQuantity: number; // quantity reserved by unpaid/pending orders
+  reorderLevel: number; // low-stock threshold for admin alerts
   active: boolean; // disable specific size without deleting it
 }
 

@@ -8,7 +8,7 @@ import connect_to_database from '@/lib/db';
 import { AuditAction } from '@/models/Auditlog';
 import Category from '@/models/Category';
 import Product from '@/models/Product';
-import { updateCategorySchema } from '@/schemas/catalog.schemas';
+import { createCategorySchema, updateCategorySchema } from '@/schemas/catalog.schemas';
 import { slugify } from '@/utils/slug';
 
 const category_select_fields =
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/cate
   }
 
   const payload = validation_result.data;
-  const manual_slug = payload.slug ? slugify(payload.slug) : undefined;
+  const manual_slug = payload.slug ? slugify(payload.slug) : slugify(payload.name || ''); // If slug is provided, use it; otherwise, generate from name.
 
   if (manual_slug) {
     const existing_slug_owner = await Category.findOne({
@@ -152,6 +152,82 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/cate
     oldValues: old_values,
     newValues: serialize_category(found_category),
     metadata: { resource: 'category' },
+    ...requestMeta(req),
+  });
+
+  return ok({ category: serialize_category(found_category) });
+}
+
+export async function PUT(req: NextRequest, ctx: RouteContext<'/api/admin/category/[id]'>) {
+  const authorization = await requirePermission(Permission.CATEGORIES_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
+  const category_id = await get_category_id(ctx);
+  if (!Types.ObjectId.isValid(category_id)) {
+    return err('Invalid category id', 400);
+  }
+
+  const request_body = await req.json().catch(() => null);
+  const validation_result = createCategorySchema.safeParse(request_body);
+  if (!validation_result.success) {
+    return format_validation_issues(validation_result.error.issues);
+  }
+
+  await connect_to_database();
+
+  const found_category = await Category.findById(category_id).select(category_select_fields);
+  if (!found_category) {
+    return err('Category not found', 404);
+  }
+
+  const payload = validation_result.data;
+  const manual_slug = payload.slug ? slugify(payload.slug) : slugify(payload.name);
+
+  const existing_slug_owner = await Category.findOne({
+    slug: manual_slug,
+    _id: { $ne: found_category._id },
+  })
+    .select('_id')
+    .lean();
+
+  if (existing_slug_owner) {
+    return err('A category with this slug already exists', 409);
+  }
+
+  if (payload.parent) {
+    if (payload.parent === category_id) {
+      return err('A category cannot be its own parent', 400);
+    }
+
+    const parent_category = await Category.findById(payload.parent).select('_id').lean();
+    if (!parent_category) {
+      return err('Parent category not found', 404);
+    }
+  }
+
+  const old_values = serialize_category(found_category);
+
+  found_category.name = payload.name;
+  found_category.slug = manual_slug;
+  found_category.parent = payload.parent ? new Types.ObjectId(payload.parent) : null;
+  found_category.image = payload.image ?? null;
+  found_category.description = payload.description ?? null;
+  found_category.sortOrder = payload.sortOrder ?? 0;
+  found_category.active = payload.active ?? true;
+
+  await found_category.save();
+
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Category',
+    entityId: found_category._id.toString(),
+    oldValues: old_values,
+    newValues: serialize_category(found_category),
+    metadata: { resource: 'category', operation: 'PUT' },
     ...requestMeta(req),
   });
 

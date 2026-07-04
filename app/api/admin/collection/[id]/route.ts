@@ -8,7 +8,7 @@ import connect_to_database from '@/lib/db';
 import { AuditAction } from '@/models/Auditlog';
 import Collection from '@/models/Collection';
 import Product from '@/models/Product';
-import { updateCollectionSchema } from '@/schemas/catalog.schemas';
+import { createCollectionSchema, updateCollectionSchema } from '@/schemas/catalog.schemas';
 import { CollectionType } from '@/types/shared/product';
 import { slugify } from '@/utils/slug';
 
@@ -161,6 +161,79 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/coll
     oldValues: old_values,
     newValues: serialize_collection(found_collection),
     metadata: { resource: 'collection' },
+    ...requestMeta(req),
+  });
+
+  return ok({ collection: serialize_collection(found_collection) });
+}
+
+export async function PUT(req: NextRequest, ctx: RouteContext<'/api/admin/collection/[id]'>) {
+  const authorization = await requirePermission(Permission.COLLECTIONS_WRITE);
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
+  const collection_id = await get_collection_id(ctx);
+  if (!Types.ObjectId.isValid(collection_id)) {
+    return err('Invalid collection id', 400);
+  }
+
+  const request_body = await req.json().catch(() => null);
+  const validation_result = createCollectionSchema.safeParse(request_body);
+  if (!validation_result.success) {
+    return format_validation_issues(validation_result.error.issues);
+  }
+
+  await connect_to_database();
+
+  const found_collection =
+    await Collection.findById(collection_id).select(collection_select_fields);
+  if (!found_collection) {
+    return err('Collection not found', 404);
+  }
+
+  const payload = validation_result.data;
+  const manual_slug = payload.slug ? slugify(payload.slug) : slugify(payload.name);
+
+  const existing_slug_owner = await Collection.findOne({
+    slug: manual_slug,
+    _id: { $ne: found_collection._id },
+  })
+    .select('_id')
+    .lean();
+
+  if (existing_slug_owner) {
+    return err('A collection with this slug already exists', 409);
+  }
+
+  const next_type = payload.type ?? CollectionType.MANUAL;
+  const next_rules = next_type === CollectionType.SMART ? (payload.rules ?? []) : [];
+  if (next_type === CollectionType.SMART && next_rules.length === 0) {
+    return err('Smart collections require at least one rule', 422);
+  }
+
+  const old_values = serialize_collection(found_collection);
+
+  found_collection.name = payload.name;
+  found_collection.slug = manual_slug;
+  found_collection.description = payload.description ?? null;
+  found_collection.bannerImage = payload.bannerImage ?? null;
+  found_collection.active = payload.active ?? true;
+  found_collection.type = next_type;
+  found_collection.rules = next_rules;
+  found_collection.sortOrder = payload.sortOrder ?? 0;
+
+  await found_collection.save();
+
+  writeAuditLog({
+    userId: null,
+    actorId: new Types.ObjectId(authorization.user.userId),
+    action: AuditAction.CATALOG_ENTITY_UPDATED,
+    entityType: 'Collection',
+    entityId: found_collection._id.toString(),
+    oldValues: old_values,
+    newValues: serialize_collection(found_collection),
+    metadata: { resource: 'collection', operation: 'PUT' },
     ...requestMeta(req),
   });
 

@@ -36,7 +36,18 @@ const product_size_schema = z.object({
   sku: z.string().trim().max(120).nullable().optional(),
   barcode: z.string().trim().max(120).nullable().optional(),
   stockQuantity: z.coerce.number().int().min(0, 'Stock quantity must be zero or greater'),
+  reservedQuantity: z.coerce.number().int().min(0).optional(),
+  reorderLevel: z.coerce.number().int().min(0).optional(),
   active: z.boolean().optional(),
+}).superRefine((payload, ctx) => {
+  const reserved_quantity = payload.reservedQuantity ?? 0;
+  if (reserved_quantity > payload.stockQuantity) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['reservedQuantity'],
+      message: 'Reserved quantity cannot exceed stock quantity',
+    });
+  }
 });
 
 const product_seo_schema = z.object({

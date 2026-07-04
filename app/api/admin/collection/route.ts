@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
   await connect_to_database();
 
   const payload = validation_result.data;
-  const manual_slug = payload.slug ? slugify(payload.slug) : undefined;
+  let manual_slug = payload.slug ? slugify(payload.slug) : undefined;
 
   if (manual_slug) {
     const existing_slug_owner = await Collection.findOne({ slug: manual_slug })
@@ -125,7 +125,11 @@ export async function POST(req: NextRequest) {
       .lean();
 
     if (existing_slug_owner) {
-      return err('A collection with this slug already exists', 409);
+      // return err('A collection with this slug already exists', 409);
+
+      // create a unique slug by appending a random string to the end of the slug
+      const random_string = Math.random().toString(36).substring(2, 8);
+      manual_slug = `${manual_slug}-${random_string}`;
     }
   }
 
