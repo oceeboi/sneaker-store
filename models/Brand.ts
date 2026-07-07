@@ -29,6 +29,7 @@ const BrandSchema = new Schema<IBrand>(
       type: String,
       unique: true,
       index: true,
+      required: [true, 'Brand slug is required'],
       // Auto-generated from name on create; can be overridden by admin
     },
 

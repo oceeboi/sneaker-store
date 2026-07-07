@@ -83,6 +83,43 @@ function normalize_sizes(
   return [...deduped.values()];
 }
 
+function normalize_media(
+  media:
+    | {
+        url: string;
+        alt: string;
+        type?: MediaType;
+        order?: number;
+      }[]
+    | undefined
+) {
+  if (!media) return [];
+
+  const sortable_media = media.map((media_item, index) => ({
+    media_item,
+    original_index: index,
+    requested_order:
+      typeof media_item.order === 'number' && Number.isFinite(media_item.order)
+        ? media_item.order
+        : Number.MAX_SAFE_INTEGER,
+  }));
+
+  sortable_media.sort((left, right) => {
+    if (left.requested_order !== right.requested_order) {
+      return left.requested_order - right.requested_order;
+    }
+
+    return left.original_index - right.original_index;
+  });
+
+  return sortable_media.map(({ media_item }, index) => ({
+    url: media_item.url,
+    alt: media_item.alt,
+    type: media_item.type ?? MediaType.IMAGE,
+    order: index,
+  }));
+}
+
 function serialize_reference(reference: unknown) {
   if (!reference) return null;
   if (typeof reference === 'object' && '_id' in reference) {
@@ -343,12 +380,7 @@ export async function POST(req: NextRequest) {
     gender: payload.gender,
     description: payload.description ?? null,
     features: unique_string_array(payload.features),
-    media: (payload.media ?? []).map((media_item, index) => ({
-      url: media_item.url,
-      alt: media_item.alt,
-      type: media_item.type ?? MediaType.IMAGE,
-      order: media_item.order ?? index,
-    })),
+    media: normalize_media(payload.media),
     sizes: normalize_sizes(payload.sizes),
     pricing: {
       currency: (payload.pricing.currency ?? 'NGN').toUpperCase(),

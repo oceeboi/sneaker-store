@@ -97,7 +97,11 @@ export async function POST(req: NextRequest) {
   await connect_to_database();
 
   const payload = validation_result.data;
-  let manual_slug = payload.slug ? slugify(payload.slug) : undefined;
+  let manual_slug = payload.slug
+    ? slugify(payload.slug)
+    : payload.name
+      ? slugify(payload.name)
+      : undefined; // If slug is provided, use it; otherwise, generate from name.
 
   if (manual_slug) {
     const existing_slug_owner = await Brand.findOne({ slug: manual_slug }).select('_id').lean();
