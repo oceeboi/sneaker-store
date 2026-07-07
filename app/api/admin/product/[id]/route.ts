@@ -351,9 +351,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/prod
   if (payload.media !== undefined) {
     found_product.media = normalize_media(payload.media);
   }
-  if (payload.sizes !== undefined) {
-    found_product.sizes = normalize_sizes(payload.sizes);
-  }
+  // if (payload.sizes !== undefined) {
+  //   found_product.sizes = normalize_sizes(payload.sizes);
+  // }
   if (payload.pricing !== undefined) {
     found_product.pricing = {
       currency: (payload.pricing.currency ?? found_product.pricing.currency ?? 'NGN').toUpperCase(),
@@ -473,7 +473,7 @@ export async function PUT(req: NextRequest, ctx: RouteContext<'/api/admin/produc
   found_product.description = payload.description ?? null;
   found_product.features = unique_string_array(payload.features);
   found_product.media = normalize_media(payload.media);
-  found_product.sizes = normalize_sizes(payload.sizes);
+  // found_product.sizes = normalize_sizes(payload.sizes);
   found_product.pricing = {
     currency: (payload.pricing.currency ?? 'NGN').toUpperCase(),
     basePrice: payload.pricing.basePrice,

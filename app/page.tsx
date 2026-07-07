@@ -109,7 +109,7 @@ function ProductDetailError({ message }: { message: string }) {
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
 
-  const productQuery = usePublicProductQuery('nike-air-force-1-07-w37cxi');
+  const productQuery = usePublicProductQuery('nike-air-force-1-07');
 
   if (productQuery.isPending) {
     return <ProductDetailSkeleton />;

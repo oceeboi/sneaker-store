@@ -97,8 +97,8 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/products/[s
     .select(public_product_select_fields)
     .populate('brand', 'name slug')
     .populate('category', 'name slug')
-    .populate('collections', 'name slug type');
-
+    .populate('collections', 'name slug type')
+    .lean();
   if (!found_product) {
     return err('Product not found', 404);
   }

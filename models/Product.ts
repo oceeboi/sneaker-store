@@ -1,6 +1,8 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
 import {
   Gender,
+  IAdditionalSection,
+  IDescription,
   IMedia,
   IPricing,
   ISeo,
@@ -25,7 +27,7 @@ export interface IProduct extends Document {
   productType: ProductType;
   gender: Gender;
 
-  description: string | null;
+  description: IDescription;
   features: string[]; // bullet-point feature list
 
   media: IMedia[];
@@ -73,24 +75,80 @@ const PricingSchema = new Schema<IPricing>(
   { _id: false }
 );
 
-const SizeOptionSchema = new Schema<ISizeOption>(
-  {
-    size: { type: String, required: true, trim: true, maxlength: 20 },
-    sku: { type: String, default: null, trim: true, maxlength: 120 },
-    barcode: { type: String, default: null, trim: true, maxlength: 120 },
-    stockQuantity: { type: Number, required: true, min: 0, default: 0 },
-    reservedQuantity: { type: Number, required: true, min: 0, default: 0 },
-    reorderLevel: { type: Number, required: true, min: 0, default: 0 },
-    active: { type: Boolean, default: true },
-  },
-  { _id: false }
-);
+const SizeOptionSchema = new Schema<ISizeOption>({
+  size: { type: String, required: true, trim: true, maxlength: 20 },
+  sku: { type: String, default: null, trim: true, maxlength: 120 },
+  barcode: { type: String, default: null, trim: true, maxlength: 120 },
+  stockQuantity: { type: Number, required: true, min: 0, default: 0 },
+  reservedQuantity: { type: Number, required: true, min: 0, default: 0 },
+  reorderLevel: { type: Number, required: true, min: 0, default: 0 },
+  active: { type: Boolean, default: true },
+});
 
 const SeoSchema = new Schema<ISeo>(
   {
     title: { type: String, trim: true, default: null, maxlength: 70 },
     description: { type: String, trim: true, default: null, maxlength: 160 },
     keywords: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
+const AdditionalSectionSchema = new Schema<IAdditionalSection>(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 60 },
+    content: { type: String, required: true, trim: true, maxlength: 2000 },
+  },
+  { _id: false }
+);
+
+const DescriptionSchema = new Schema<IDescription>(
+  {
+    narrative: {
+      type: String,
+      required: [true, 'A narrative description is required'],
+      trim: true,
+      maxlength: [2000, 'Narrative cannot exceed 2000 characters'],
+    },
+    styleCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: null,
+      maxlength: 50,
+    },
+    colorway: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 150,
+    },
+    releaseDate: {
+      type: Date,
+      default: null,
+    },
+    materials: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 500,
+    },
+    editorialHighlights: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v: string[]) => v.length <= 8,
+        message: 'A product cannot have more than 8 editorial highlights',
+      },
+    },
+    additionalSections: {
+      type: [AdditionalSectionSchema],
+      default: [],
+      validate: {
+        validator: (v: IAdditionalSection[]) => v.length <= 5,
+        message: 'A product cannot have more than 5 additional sections',
+      },
+    },
   },
   { _id: false }
 );
@@ -152,7 +210,10 @@ const ProductSchema = new Schema<IProduct>(
       index: true,
     },
 
-    description: { type: String, trim: true, default: null },
+    description: {
+      type: DescriptionSchema,
+      required: [true, 'Description is required'],
+    },
     features: { type: [String], default: [] },
 
     media: {
