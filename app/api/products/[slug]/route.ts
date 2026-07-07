@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { err, ok } from '@/lib/auth/response';
 import connect_to_database from '@/lib/db';
 import Product from '@/models/Product';
-import { Gender, MediaType, ProductType } from '@/types/shared/product';
+import { Gender, IDescription, MediaType, ProductType } from '@/types/shared/product';
 
 const public_product_select_fields =
   'name slug brand category collections productType gender description features media sizes pricing seo tags active publishedAt createdAt updatedAt';
@@ -36,7 +36,7 @@ function serialize_product(product: {
   collections: unknown[];
   productType: ProductType;
   gender: Gender;
-  description: string | null;
+  description: IDescription | null;
   features: string[];
   media: { url: string; alt: string; type: MediaType; order: number }[];
   sizes: {

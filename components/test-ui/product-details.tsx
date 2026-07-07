@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { ProductDescription } from '@/services/product.service';
 import Image from 'next/image';
 import { Heart, Check, ShoppingBag } from 'lucide-react';
 
@@ -34,7 +35,7 @@ export interface IPricing {
 export interface ProductDetailProps {
   name: string;
   brandName: string;
-  description: string | null;
+  description: ProductDescription | null;
   features: string[];
   tags: string[];
   media: IMedia[];
@@ -141,7 +142,7 @@ export default function ProductDetail({
         </div>
 
         {description && (
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{description?.colorway}</p>
         )}
 
         {tags.length > 0 && (

@@ -50,6 +50,21 @@ export type ProductSeo = {
   keywords: string[];
 };
 
+export type IAdditionalSection = {
+  title: string; // e.g. "Authenticity", "Packaging", "Sizing Guide"
+  content: string;
+};
+
+export type ProductDescription = {
+  narrative: string; // the editorial paragraph — brand story, collab context, design details
+  styleCode: string | null; // e.g. "IM9113-300" — the manufacturer's official style/reference code
+  colorway: string | null; // e.g. "Green Spark / Black / Vapor Green"
+  releaseDate: Date | null; // e.g. March 28, 2026
+  materials: string | null; // optional — "Green Spark leather, black nubuck accents"
+  editorialHighlights: string[]; // short scannable design callouts, e.g. "Reverse Swoosh", "Cactus Jack branding"
+  additionalSections: IAdditionalSection[];
+};
+
 export type ProductData = {
   id: string;
   name: string;
@@ -59,7 +74,7 @@ export type ProductData = {
   collections: ProductReference[];
   productType: string;
   gender: string;
-  description: string | null;
+  description: ProductDescription | null;
   features: string[];
   media: ProductMedia[];
   sizes: ProductSize[];

@@ -31,29 +31,46 @@ const product_pricing_schema = z.object({
   costPrice: z.coerce.number().min(0).nullable().optional(),
 });
 
-const product_size_schema = z.object({
-  size: z.string().trim().min(1, 'Size is required').max(20),
-  sku: z.string().trim().max(120).nullable().optional(),
-  barcode: z.string().trim().max(120).nullable().optional(),
-  stockQuantity: z.coerce.number().int().min(0, 'Stock quantity must be zero or greater'),
-  reservedQuantity: z.coerce.number().int().min(0).optional(),
-  reorderLevel: z.coerce.number().int().min(0).optional(),
-  active: z.boolean().optional(),
-}).superRefine((payload, ctx) => {
-  const reserved_quantity = payload.reservedQuantity ?? 0;
-  if (reserved_quantity > payload.stockQuantity) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['reservedQuantity'],
-      message: 'Reserved quantity cannot exceed stock quantity',
-    });
-  }
-});
+const product_size_schema = z
+  .object({
+    size: z.string().trim().min(1, 'Size is required').max(20),
+    sku: z.string().trim().max(120).nullable().optional(),
+    barcode: z.string().trim().max(120).nullable().optional(),
+    stockQuantity: z.coerce.number().int().min(0, 'Stock quantity must be zero or greater'),
+    reservedQuantity: z.coerce.number().int().min(0).optional(),
+    reorderLevel: z.coerce.number().int().min(0).optional(),
+    active: z.boolean().optional(),
+  })
+  .superRefine((payload, ctx) => {
+    const reserved_quantity = payload.reservedQuantity ?? 0;
+    if (reserved_quantity > payload.stockQuantity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['reservedQuantity'],
+        message: 'Reserved quantity cannot exceed stock quantity',
+      });
+    }
+  });
 
 const product_seo_schema = z.object({
   title: z.string().trim().max(70).nullable().optional(),
   description: z.string().trim().max(160).nullable().optional(),
   keywords: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
+});
+
+const product_additional_section_schema = z.object({
+  title: z.string().trim().min(1).max(60),
+  content: z.string().trim().min(1).max(2000),
+});
+
+const product_description_schema = z.object({
+  narrative: z.string().trim().min(1, 'Description narrative is required').max(2000),
+  styleCode: z.string().trim().max(50).nullable().optional(),
+  colorway: z.string().trim().max(150).nullable().optional(),
+  releaseDate: z.coerce.date().nullable().optional(),
+  materials: z.string().trim().max(500).nullable().optional(),
+  editorialHighlights: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
+  additionalSections: z.array(product_additional_section_schema).max(5).optional(),
 });
 
 const collection_ids_schema = z.array(object_id_schema).max(50, 'Too many collections assigned');
@@ -132,7 +149,7 @@ const product_base_schema = z.object({
     ProductType.EQUIPMENT,
   ]),
   gender: z.enum([Gender.MEN, Gender.WOMEN, Gender.UNISEX, Gender.KIDS]),
-  description: nullable_trimmed_string,
+  description: product_description_schema,
   features: z.array(z.string().trim().min(1).max(200)).max(50).optional(),
   media: z.array(product_media_schema).max(20).optional(),
   sizes: z.array(product_size_schema).max(100).optional(),

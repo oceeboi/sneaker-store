@@ -11,7 +11,7 @@ import Category from '@/models/Category';
 import Collection from '@/models/Collection';
 import Product from '@/models/Product';
 import { createProductSchema, updateProductSchema } from '@/schemas/catalog.schemas';
-import { Gender, MediaType, ProductType } from '@/types/shared/product';
+import { Gender, IDescription, MediaType, ProductType } from '@/types/shared/product';
 import { slugify } from '@/utils/slug';
 
 const product_select_fields =
@@ -36,6 +36,35 @@ function unique_string_array(values: string[] | undefined) {
 function unique_object_ids(values: string[] | undefined) {
   if (!values) return [];
   return [...new Set(values)];
+}
+
+function normalize_description(
+  description:
+    | {
+        narrative: string;
+        styleCode?: string | null;
+        colorway?: string | null;
+        releaseDate?: Date | null;
+        materials?: string | null;
+        editorialHighlights?: string[];
+        additionalSections?: { title: string; content: string }[];
+      }
+    | undefined
+): IDescription {
+  return {
+    narrative: description?.narrative?.trim() ?? '',
+    styleCode: description?.styleCode?.trim()?.toUpperCase() || null,
+    colorway: description?.colorway?.trim() || null,
+    releaseDate: description?.releaseDate ?? null,
+    materials: description?.materials?.trim() || null,
+    editorialHighlights: unique_string_array(description?.editorialHighlights),
+    additionalSections: (description?.additionalSections ?? [])
+      .map((section) => ({
+        title: section.title.trim(),
+        content: section.content.trim(),
+      }))
+      .filter((section) => section.title.length > 0 && section.content.length > 0),
+  };
 }
 
 function normalize_sizes(
@@ -147,7 +176,7 @@ function serialize_product(product: {
   collections: unknown[];
   productType: ProductType;
   gender: Gender;
-  description: string | null;
+  description: IDescription;
   features: string[];
   media: { url: string; alt: string; type: MediaType; order: number }[];
   sizes: {
@@ -345,7 +374,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/prod
   }
   if (payload.productType !== undefined) found_product.productType = payload.productType;
   if (payload.gender !== undefined) found_product.gender = payload.gender;
-  if (payload.description !== undefined) found_product.description = payload.description;
+  if (payload.description !== undefined)
+    found_product.description = normalize_description(payload.description);
   if (payload.features !== undefined)
     found_product.features = unique_string_array(payload.features);
   if (payload.media !== undefined) {
@@ -470,7 +500,7 @@ export async function PUT(req: NextRequest, ctx: RouteContext<'/api/admin/produc
   );
   found_product.productType = payload.productType;
   found_product.gender = payload.gender;
-  found_product.description = payload.description ?? null;
+  found_product.description = normalize_description(payload.description);
   found_product.features = unique_string_array(payload.features);
   found_product.media = normalize_media(payload.media);
   // found_product.sizes = normalize_sizes(payload.sizes);

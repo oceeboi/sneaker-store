@@ -11,7 +11,13 @@ import Category from '@/models/Category';
 import Collection from '@/models/Collection';
 import Product from '@/models/Product';
 import { createProductSchema } from '@/schemas/catalog.schemas';
-import { CollectionType, Gender, MediaType, ProductType } from '@/types/shared/product';
+import {
+  CollectionType,
+  Gender,
+  IDescription,
+  MediaType,
+  ProductType,
+} from '@/types/shared/product';
 import { slugify } from '@/utils/slug';
 
 const product_select_fields =
@@ -37,6 +43,35 @@ function unique_string_array(values: string[] | undefined) {
 function unique_object_ids(values: string[] | undefined) {
   if (!values) return [];
   return [...new Set(values)];
+}
+
+function normalize_description(
+  description:
+    | {
+        narrative: string;
+        styleCode?: string | null;
+        colorway?: string | null;
+        releaseDate?: Date | null;
+        materials?: string | null;
+        editorialHighlights?: string[];
+        additionalSections?: { title: string; content: string }[];
+      }
+    | undefined
+): IDescription {
+  return {
+    narrative: description?.narrative?.trim() ?? '',
+    styleCode: description?.styleCode?.trim()?.toUpperCase() || null,
+    colorway: description?.colorway?.trim() || null,
+    releaseDate: description?.releaseDate ?? null,
+    materials: description?.materials?.trim() || null,
+    editorialHighlights: unique_string_array(description?.editorialHighlights),
+    additionalSections: (description?.additionalSections ?? [])
+      .map((section) => ({
+        title: section.title.trim(),
+        content: section.content.trim(),
+      }))
+      .filter((section) => section.title.length > 0 && section.content.length > 0),
+  };
 }
 
 function normalize_sizes(
@@ -148,7 +183,7 @@ function serialize_product(product: {
   collections: unknown[];
   productType: ProductType;
   gender: Gender;
-  description: string | null;
+  description: IDescription;
   features: string[];
   media: { url: string; alt: string; type: MediaType; order: number }[];
   sizes: {
@@ -257,7 +292,11 @@ function build_product_query(req: NextRequest) {
     query.$or = [
       { name: { $regex: search_term, $options: 'i' } },
       { slug: { $regex: search_term, $options: 'i' } },
-      { description: { $regex: search_term, $options: 'i' } },
+      { 'description.narrative': { $regex: search_term, $options: 'i' } },
+      { 'description.styleCode': { $regex: search_term, $options: 'i' } },
+      { 'description.colorway': { $regex: search_term, $options: 'i' } },
+      { 'description.materials': { $regex: search_term, $options: 'i' } },
+      { 'description.editorialHighlights': { $regex: search_term, $options: 'i' } },
       { tags: { $regex: search_term, $options: 'i' } },
     ];
   }
@@ -378,7 +417,7 @@ export async function POST(req: NextRequest) {
     collections: collection_ids.map((collection_id) => new Types.ObjectId(collection_id)),
     productType: payload.productType,
     gender: payload.gender,
-    description: payload.description ?? null,
+    description: normalize_description(payload.description),
     features: unique_string_array(payload.features),
     media: normalize_media(payload.media),
     sizes: normalize_sizes(payload.sizes),
@@ -401,7 +440,8 @@ export async function POST(req: NextRequest) {
     .select(product_select_fields)
     .populate('brand', 'name slug')
     .populate('category', 'name slug')
-    .populate('collections', 'name slug type');
+    .populate('collections', 'name slug type')
+    .lean();
 
   if (!populated_product) {
     return err('Product not found after creation', 500);

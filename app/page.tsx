@@ -40,7 +40,7 @@ function toProductDetailProps(product: ProductData): ProductDetailProps {
   return {
     name: product.name,
     brandName: product.brand?.name ?? 'Unbranded',
-    description: product.description,
+    description: product?.description,
     features: product.features,
     tags: product.tags,
     media: toMediaItems(product.media),
