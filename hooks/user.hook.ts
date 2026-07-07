@@ -29,6 +29,8 @@
  *    mutation here is pessimistic: wait for the server, then write/invalidate
  *    the confirmed result.
  *
+ * ** note the change password does a clean logout of the user session and requires a re-login after a successful password change.
+ *
  * Adjust the import path below if your project's alias differs:
  *   - `@/services/user.service` → wherever `UserService`/`userService` lives
  */
