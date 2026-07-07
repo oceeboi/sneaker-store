@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { RootLayoutComp } from '@/components/layout/root-layout';
 import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
@@ -50,9 +51,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="min-h-full flex flex-col">
         {' '}
-        <I18nProvider language={lng} resources={resources}>
-          {children}{' '}
-        </I18nProvider>
+        <RootLayoutComp>
+          <I18nProvider language={lng} resources={resources}>
+            {children}
+          </I18nProvider>
+        </RootLayoutComp>
       </body>
     </html>
   );

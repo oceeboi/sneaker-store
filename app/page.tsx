@@ -1,249 +1,123 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import Image from 'next/image';
-import { Heart, Check, ShoppingBag } from 'lucide-react';
+import { useParams } from 'next/navigation';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-// Mirrors the IProduct shape from the Mongoose model.
+import ProductDetail, {
+  type IMedia,
+  type ISizeOption,
+  type ProductDetailProps,
+} from '@/components/test-ui/product-details';
+import { usePublicProductQuery } from '@/hooks/product.hook';
+import type { ProductData, ProductMedia } from '@/services/product.service';
 
-interface IMedia {
-  url: string;
-  alt: string;
-  type: 'image' | 'video';
-  order: number;
+// ─── Mapping: service shape -> presentation shape ──────────────────────────
+// Lives here, not inside ProductDetail, so the component stays reusable and
+// this page stays the single place that knows about the API's data model.
+
+function toMediaItems(media: ProductMedia[]): IMedia[] {
+  return media
+    .filter(
+      (item): item is ProductMedia & { type: 'image' | 'video' } =>
+        item.type === 'image' || item.type === 'video'
+    )
+    .map((item) => ({ url: item.url, alt: item.alt, type: item.type, order: item.order }));
 }
 
-interface ISizeOption {
-  size: string;
-  sku: string | null;
-  stockQuantity: number;
-  active: boolean;
+function toSizeOptions(sizes: ProductData['sizes']): ISizeOption[] {
+  return sizes.map((s) => ({
+    size: s.size,
+    sku: s.sku,
+    // `availableQuantity` (stock minus quantity already reserved by other
+    // in-progress checkouts) is what's actually purchasable right now.
+    // Using raw `stockQuantity` here would let two customers both see
+    // "in stock" on the last unit while it's held in someone else's cart.
+    stockQuantity: s.availableQuantity,
+    active: s.active,
+  }));
 }
 
-interface IPricing {
-  currency: string;
-  basePrice: number; // smallest unit (kobo)
-  compareAtPrice: number | null;
+function toProductDetailProps(product: ProductData): ProductDetailProps {
+  return {
+    name: product.name,
+    brandName: product.brand?.name ?? 'Unbranded',
+    description: product.description,
+    features: product.features,
+    tags: product.tags,
+    media: toMediaItems(product.media),
+    sizes: toSizeOptions(product.sizes),
+    pricing: {
+      currency: product.pricing.currency,
+      basePrice: product.pricing.basePrice,
+      compareAtPrice: product.pricing.compareAtPrice,
+    },
+    sizeLabel: product.productType === 'sneaker' ? 'Size (EU)' : 'Size',
+  };
 }
 
-interface ProductDetailProps {
-  name: string;
-  brandName: string;
-  description: string | null;
-  features: string[];
-  tags: string[];
-  media: IMedia[];
-  sizes: ISizeOption[];
-  pricing: IPricing;
-  sizeLabel?: string; // e.g. "Size (EU)" for sneakers, "Size" for apparel
-}
+// ─── Loading skeleton ───────────────────────────────────────────────────────
+// Mirrors ProductDetail's grid exactly so there's zero layout shift when real
+// data swaps in — important on the slower mobile connections this storefront
+// is being built for.
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatPrice(amountInKobo: number, currency: string) {
-  return new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amountInKobo / 100);
-}
-
-function discountPercent(base: number, compareAt: number | null) {
-  if (!compareAt || compareAt <= base) return null;
-  return Math.round(((compareAt - base) / compareAt) * 100);
-}
-
-// ─── Component ──────────────────────────────────────────────────────────────
-function ProductDetail({
-  name,
-  brandName,
-  description,
-  features,
-  tags,
-  media,
-  sizes,
-  pricing,
-  sizeLabel = 'Size',
-}: ProductDetailProps) {
-  const [activeMediaIdx, setActiveMediaIdx] = useState(0);
-  const [selectedSize, setSelectedSize] = useState<string | null>(
-    sizes.find((s) => s.active && s.stockQuantity > 0)?.size ?? null
-  );
-
-  const sortedMedia = useMemo(() => [...media].sort((a, b) => a.order - b.order), [media]);
-
-  const selectedSizeOption = sizes.find((s) => s.size === selectedSize);
-  const discount = discountPercent(pricing.basePrice, pricing.compareAtPrice);
-
+function ProductDetailSkeleton() {
   return (
-    <div className="mx-auto grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-[280px_1fr]">
-      {/* Gallery */}
-      <div>
-        <div className="relative aspect-square overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-          {sortedMedia[activeMediaIdx] ? (
-            <Image
-              src={sortedMedia[activeMediaIdx].url}
-              alt={sortedMedia[activeMediaIdx].alt}
-              fill
-              sizes="280px"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-zinc-400">No image</div>
-          )}
-        </div>
-
-        {sortedMedia.length > 1 && (
-          <div className="mt-2 flex gap-2">
-            {sortedMedia.map((item, idx) => (
-              <button
-                key={item.url}
-                onClick={() => setActiveMediaIdx(idx)}
-                aria-label={`View image ${idx + 1}`}
-                className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-md border transition-colors ${
-                  idx === activeMediaIdx
-                    ? 'border-teal-600'
-                    : 'border-zinc-200 dark:border-zinc-800'
-                }`}
-              >
-                <Image src={item.url} alt="" fill sizes="48px" className="object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{brandName}</p>
-        <h1 className="mt-1 text-xl font-medium text-zinc-900 dark:text-zinc-50">{name}</h1>
-
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-2xl font-medium text-zinc-900 dark:text-zinc-50">
-            {formatPrice(pricing.basePrice, pricing.currency)}
-          </span>
-          {pricing.compareAtPrice && (
-            <span className="text-sm text-zinc-400 line-through">
-              {formatPrice(pricing.compareAtPrice, pricing.currency)}
-            </span>
-          )}
-          {discount && (
-            <span className="rounded-md bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
-              {discount}% off
-            </span>
-          )}
-        </div>
-
-        {description && (
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
-        )}
-
-        {tags.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-400"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {sizes.length > 0 && (
-          <div className="mt-6">
-            <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">{sizeLabel}</p>
-            <div className="flex flex-wrap gap-2">
-              {sizes.map((s) => {
-                const soldOut = !s.active || s.stockQuantity === 0;
-                const selected = s.size === selectedSize;
-                return (
-                  <button
-                    key={s.size}
-                    disabled={soldOut}
-                    onClick={() => setSelectedSize(s.size)}
-                    className={`min-w-11 rounded-md border px-3 py-2 text-sm transition-colors ${
-                      soldOut
-                        ? 'cursor-not-allowed border-zinc-200 text-zinc-300 line-through dark:border-zinc-800 dark:text-zinc-700'
-                        : selected
-                          ? 'border-2 border-teal-600 font-medium text-zinc-900 dark:text-zinc-50'
-                          : 'border-zinc-200 text-zinc-700 hover:border-zinc-400 dark:border-zinc-800 dark:text-zinc-300'
-                    }`}
-                  >
-                    {s.size}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {selectedSizeOption && selectedSizeOption.stockQuantity > 0 && (
-          <div className="mt-3 flex items-center gap-1.5 text-sm text-teal-700 dark:text-teal-400">
-            <Check className="h-4 w-4" />
-            <span>
-              In stock &middot; {selectedSizeOption.stockQuantity} left in size{' '}
-              {selectedSizeOption.size}
-            </span>
-          </div>
-        )}
-
-        <div className="mt-6 flex gap-2.5">
-          <button
-            disabled={!selectedSizeOption || selectedSizeOption.stockQuantity === 0}
-            className="flex flex-1 items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-50 dark:text-zinc-900"
-          >
-            <ShoppingBag className="h-4 w-4" />
-            Add to cart
-          </button>
-          <button
-            aria-label="Add to wishlist"
-            className="flex h-10 w-10 items-center justify-center rounded-md border border-zinc-200 text-zinc-700 hover:border-zinc-400 dark:border-zinc-800 dark:text-zinc-300"
-          >
-            <Heart className="h-4 w-4" />
-          </button>
-        </div>
-
-        {features.length > 0 && (
-          <div className="mt-6 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-            <p className="mb-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">Features</p>
-            <ul className="list-inside list-disc space-y-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {features.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+    <div className="mx-auto grid max-w-3xl animate-pulse grid-cols-1 gap-8 sm:grid-cols-[280px_1fr]">
+      <div className="aspect-square rounded-xl bg-zinc-100 dark:bg-zinc-900" />
+      <div className="space-y-3">
+        <div className="h-3 w-20 rounded bg-zinc-100 dark:bg-zinc-900" />
+        <div className="h-6 w-48 rounded bg-zinc-100 dark:bg-zinc-900" />
+        <div className="h-7 w-28 rounded bg-zinc-100 dark:bg-zinc-900" />
+        <div className="h-16 w-full rounded bg-zinc-100 dark:bg-zinc-900" />
+        <div className="h-10 w-full rounded bg-zinc-100 dark:bg-zinc-900" />
       </div>
     </div>
   );
 }
 
-const exampleProduct: ProductDetailProps = {
-  name: 'Air Jordan 1 Mid',
-  brandName: 'Jordan',
-  description: 'Classic high-performance basketball sneaker.',
-  features: ['Premium leather upper', 'Air cushioning', 'Durable rubber sole'],
-  tags: ['Basketball', 'Retro', 'Premium'],
-  media: [
-    { url: '/image1.jpg', alt: 'Front view', type: 'image', order: 1 },
-    { url: '/image2.jpg', alt: 'Side view', type: 'image', order: 2 },
-  ],
-  sizes: [
-    { size: '40', sku: 'SKU001', stockQuantity: 5, active: true },
-    { size: '41', sku: 'SKU002', stockQuantity: 3, active: true },
-    { size: '42', sku: 'SKU003', stockQuantity: 0, active: false },
-  ],
-  pricing: {
-    currency: 'NGN',
-    basePrice: 450000,
-    compareAtPrice: 550000,
-  },
-  sizeLabel: 'Size (EU)',
-};
+// ─── Error state ────────────────────────────────────────────────────────────
 
-export default function Page() {
-  return <ProductDetail {...exampleProduct} />;
+function ProductDetailError({ message }: { message: string }) {
+  // ProductService.getProductBySlug overrides its 404 message to exactly
+  // "Product not found." — matching on that string lets this page show a
+  // dedicated empty state instead of a generic error banner, without the
+  // hook needing to carry a separate error-code field.
+  const isNotFound = message === 'Product not found.';
+
+  return (
+    <div className="mx-auto max-w-3xl py-16 text-center">
+      <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
+        {isNotFound ? 'Product not found' : 'Something went wrong'}
+      </p>
+      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        {isNotFound
+          ? "The product you're looking for doesn't exist or is no longer available."
+          : message}
+      </p>
+    </div>
+  );
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────
+// Route: app/products/[slug]/page.tsx
+//
+// Uses `useParams` (client-only, resolves synchronously) instead of reading
+// `params` off props, so this page is unaffected by the Next.js 15 change
+// that made server-passed `params`/`searchParams` a Promise — that change
+// only applies to how the framework hands params to the component; a client
+// hook like `useParams` sidesteps it entirely.
+
+export default function ProductPage() {
+  const { slug } = useParams<{ slug: string }>();
+
+  const productQuery = usePublicProductQuery('nike-air-force-1-07-w37cxi');
+
+  if (productQuery.isPending) {
+    return <ProductDetailSkeleton />;
+  }
+
+  if (productQuery.isError) {
+    return <ProductDetailError message={productQuery.error.message} />;
+  }
+
+  return <ProductDetail {...toProductDetailProps(productQuery.data)} />;
 }
