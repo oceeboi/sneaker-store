@@ -28,6 +28,12 @@ export const AuditAction = {
   CATALOG_ENTITY_UPDATED: 'CATALOG_ENTITY_UPDATED',
   CATALOG_ENTITY_DELETED: 'CATALOG_ENTITY_DELETED',
 
+  // Cart
+  CART_ITEM_ADDED: 'CART_ITEM_ADDED',
+  CART_ITEM_REMOVED: 'CART_ITEM_REMOVED',
+  CART_ITEM_UPDATED: 'CART_ITEM_UPDATED',
+  CART_CLEARED: 'CART_CLEARED',
+
   // Order //
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];

@@ -29,6 +29,12 @@ export const Permission = {
   PRODUCTS_READ: 'products:read',
   PRODUCTS_WRITE: 'products:write',
 
+  // Cart
+  CARTS_READ: 'carts:read',
+  CARTS_WRITE: 'carts:write',
+  CARTS_ADD: 'carts:add',
+  CARTS_READ_CONTENT: 'carts:read_content', // read cart items, not just metadata
+
   // Trades
   TRADES_READ: 'trades:read',
   TRADES_WRITE: 'trades:write',
@@ -68,6 +74,8 @@ export type Permission = (typeof Permission)[keyof typeof Permission];
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.CUSTOMER]: [
+    Permission.CARTS_ADD,
+    Permission.CARTS_READ_CONTENT,
     Permission.TRADES_READ,
     Permission.TRADES_WRITE,
     Permission.ACCOUNTS_READ,
