@@ -8,6 +8,9 @@ async function connect_to_database() {
   await import('@/models/Collection');
   await import('@/models/Auditlog');
   await import('@/models/User');
+  await import('@/models/Order');
+  await import('@/models/PlatformSettings');
+  await import('@/models/Transaction');
   await db.connect();
 }
 

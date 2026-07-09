@@ -29,6 +29,15 @@ export const Permission = {
   PRODUCTS_READ: 'products:read',
   PRODUCTS_WRITE: 'products:write',
 
+  // settings
+  SETTINGS_READ: 'settings:read',
+  SETTINGS_WRITE: 'settings:write',
+
+  // Rewards
+  REWARDS_READ: 'rewards:read',
+  REWARDS_WRITE: 'rewards:write',
+  REWARDS_REDEEM: 'rewards:redeem',
+
   // Cart
   CARTS_READ: 'carts:read',
   CARTS_WRITE: 'carts:write',
@@ -76,6 +85,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.CUSTOMER]: [
     Permission.CARTS_ADD,
     Permission.CARTS_READ_CONTENT,
+    Permission.REWARDS_READ,
+    Permission.REWARDS_REDEEM,
     Permission.TRADES_READ,
     Permission.TRADES_WRITE,
     Permission.ACCOUNTS_READ,

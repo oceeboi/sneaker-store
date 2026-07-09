@@ -1,23 +1,24 @@
 import { Types } from 'mongoose';
 
-import { authenticateRequest } from '@/lib/auth.middleware';
 import { err, ok } from '@/lib/auth/response';
+import { Permission } from '@/config/rbac';
+import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
 import Referral from '@/models/Referral';
 
 export async function GET() {
-  const auth_result = await authenticateRequest();
-  if ('error' in auth_result) {
-    return err(auth_result.error ?? 'Unauthorized', 401);
+  const authorization = await requirePermission(Permission.REWARDS_READ);
+  if (!authorization.ok) {
+    return authorization.response;
   }
 
-  if (!Types.ObjectId.isValid(auth_result.userId)) {
+  if (!Types.ObjectId.isValid(authorization.user.userId)) {
     return err('Unauthorized: Invalid user id', 401);
   }
 
   await connect_to_database();
 
-  const user_id = new Types.ObjectId(auth_result.userId);
+  const user_id = new Types.ObjectId(authorization.user.userId);
 
   const found_referral = await Referral.findOne({ userId: user_id })
     .select(
