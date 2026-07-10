@@ -143,6 +143,14 @@ OrderSchema.index({ status: 1, createdAt: -1 });
 // Timeout-release safety net query target
 OrderSchema.index({ status: 1, updatedAt: 1 });
 
+OrderSchema.index(
+  { user: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: 'pending_payment' },
+    name: 'one_pending_order_per_user',
+  }
+);
 const Order: Model<IOrder> = mongoose.models.Order ?? mongoose.model<IOrder>('Order', OrderSchema);
 
 export default Order;

@@ -14,6 +14,7 @@ export interface ITransaction extends Document {
 
   status: TransactionStatus;
   channel: string | null; // card, bank, ussd — from Paystack webhook payload
+  authorizationUrl: string | null; // from Paystack's response, for redirecting the user
 
   paidAt: Date | null;
   verifiedAt: Date | null; // when you server-side verified via Paystack's /transaction/verify
@@ -55,7 +56,7 @@ const TransactionSchema = new Schema<ITransaction>(
     paidAt: { type: Date, default: null },
     verifiedAt: { type: Date, default: null },
     failureReason: { type: String, default: null },
-
+    authorizationUrl: { type: String, default: null },
     gatewayResponse: { type: Schema.Types.Mixed, default: null, select: false },
   },
   {
