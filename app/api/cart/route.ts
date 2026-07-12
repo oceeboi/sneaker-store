@@ -89,7 +89,7 @@ async function get_or_create_active_cart(user_id: string) {
     },
     {
       upsert: true,
-      new: true,
+      returnDocument: 'after',
     }
   );
 

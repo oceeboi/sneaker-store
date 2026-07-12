@@ -52,6 +52,10 @@ export const AuditAction = {
 
   // Rewards
   REWARDS_REDEEMED: 'REWARDS_REDEEMED',
+
+  // Payment
+  PAYMENT_FAILED: 'PAYMENT_FAILED',
+  PAYMENT_SUCCESS: 'PAYMENT_SUCCESS',
 } as const;
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
 

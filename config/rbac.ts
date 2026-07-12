@@ -44,6 +44,8 @@ export const Permission = {
   CARTS_ADD: 'carts:add',
   CARTS_READ_CONTENT: 'carts:read_content', // read cart items, not just metadata
 
+  // Orders
+  ORDER_READ_PAY: 'orders:read_pay', // read order and payment info
   // Trades
   TRADES_READ: 'trades:read',
   TRADES_WRITE: 'trades:write',
@@ -70,6 +72,8 @@ export const Permission = {
   SUPPORT_TICKETS_READ: 'support:tickets_read',
   SUPPORT_TICKETS_WRITE: 'support:tickets_write',
 
+  // Audit logs
+
   // Admin
   ADMIN_PANEL: 'admin:panel',
   AUDIT_LOGS_READ: 'audit:read',
@@ -95,6 +99,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CONTENT_WRITE,
     Permission.SUPPORT_TICKETS_READ,
     Permission.SUPPORT_TICKETS_WRITE,
+    Permission.ORDER_READ_PAY,
   ],
 
   [UserRole.SUPPORT]: [
