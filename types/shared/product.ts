@@ -1,5 +1,7 @@
 // ─── Shared enums ─────────────────────────────────────────────────────────────
 
+import mongoose from 'mongoose';
+
 export const ProductType = {
   SNEAKER: 'sneaker', // footwear
   APPAREL: 'apparel', // clothing
@@ -83,6 +85,7 @@ export interface ISizeOption {
   reservedQuantity: number; // quantity reserved by unpaid/pending orders
   reorderLevel: number; // low-stock threshold for admin alerts
   active: boolean; // disable specific size without deleting it
+  _id?: mongoose.Types.ObjectId; // optional — only present if this is a subdocument in a Product
 }
 
 export interface IProductAttributes {

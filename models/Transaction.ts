@@ -68,8 +68,12 @@ const TransactionSchema = new Schema<ITransaction>(
 
 // All attempts for a given order, most recent first
 TransactionSchema.index({ order: 1, createdAt: -1 });
+// User history list endpoints
+TransactionSchema.index({ user: 1, createdAt: -1 });
 // Timeout-release safety net: find pending transactions older than N minutes
 TransactionSchema.index({ status: 1, createdAt: 1 });
+// Admin filtering by status with recent-first sort
+TransactionSchema.index({ status: 1, createdAt: -1 });
 
 const Transaction: Model<ITransaction> =
   mongoose.models.Transaction ?? mongoose.model<ITransaction>('Transaction', TransactionSchema);

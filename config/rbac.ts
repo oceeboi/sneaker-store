@@ -45,6 +45,9 @@ export const Permission = {
   CARTS_READ_CONTENT: 'carts:read_content', // read cart items, not just metadata
 
   // Orders
+  ORDERS_READ: 'orders:read',
+  ORDERS_READ_ANY: 'orders:read_any',
+  ORDERS_WRITE: 'orders:write',
   ORDER_READ_PAY: 'orders:read_pay', // read order and payment info
   // Trades
   TRADES_READ: 'trades:read',
@@ -78,6 +81,11 @@ export const Permission = {
   ADMIN_PANEL: 'admin:panel',
   AUDIT_LOGS_READ: 'audit:read',
   ROLES_WRITE: 'roles:write',
+
+  // TRANSACTIONS
+  TRANSACTIONS_READ: 'transactions:read', // read own transactions
+  TRANSACTIONS_WRITE: 'transactions:write',
+  TRANSACTIONS_READ_ANY: 'transactions:read_any',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -100,6 +108,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.SUPPORT_TICKETS_READ,
     Permission.SUPPORT_TICKETS_WRITE,
     Permission.ORDER_READ_PAY,
+    Permission.ORDERS_READ,
+    Permission.TRANSACTIONS_READ,
   ],
 
   [UserRole.SUPPORT]: [
@@ -113,6 +123,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.CONTENT_READ,
     Permission.SUPPORT_TICKETS_READ,
     Permission.SUPPORT_TICKETS_WRITE,
+    Permission.ORDERS_READ_ANY,
+    Permission.TRANSACTIONS_READ_ANY,
   ],
 
   [UserRole.MODERATOR]: [

@@ -1,13 +1,12 @@
-// lib/services/payment.service.ts
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 
 import { AuditAction } from '@/models/Auditlog';
 import { writeAuditLog } from '@/lib/auth/response';
 import Account from '@/models/Account';
 import Cart from '@/models/Cart';
-import Order from '@/models/Order';
+import Order, { type IOrder } from '@/models/Order';
 import Product from '@/models/Product';
-import Transaction from '@/models/Transaction';
+import Transaction, { type ITransaction } from '@/models/Transaction';
 import { award_points_for_order } from '@/lib/services/loyalty.service';
 
 // ─── Stock movements ────────────────────────────────────────────────────────────
@@ -15,23 +14,48 @@ import { award_points_for_order } from '@/lib/services/loyalty.service';
 export async function commit_item_stock(
   productId: Types.ObjectId,
   sizeId: Types.ObjectId,
-  quantity: number
-) {
-  await Product.updateOne(
-    { _id: productId, 'sizes._id': sizeId },
-    { $inc: { 'sizes.$.stockQuantity': -quantity, 'sizes.$.reservedQuantity': -quantity } }
+  quantity: number,
+  session?: mongoose.mongo.ClientSession
+): Promise<boolean> {
+  const result = await Product.updateOne(
+    {
+      _id: productId,
+      sizes: {
+        $elemMatch: {
+          _id: sizeId,
+          stockQuantity: { $gte: quantity },
+          reservedQuantity: { $gte: quantity },
+        },
+      },
+    },
+    { $inc: { 'sizes.$.stockQuantity': -quantity, 'sizes.$.reservedQuantity': -quantity } },
+    session ? { session } : undefined
   );
+
+  return result.modifiedCount > 0;
 }
 
 export async function release_item_stock(
   productId: Types.ObjectId,
   sizeId: Types.ObjectId,
-  quantity: number
-) {
-  await Product.updateOne(
-    { _id: productId, 'sizes._id': sizeId },
-    { $inc: { 'sizes.$.reservedQuantity': -quantity } }
+  quantity: number,
+  session?: mongoose.mongo.ClientSession
+): Promise<boolean> {
+  const result = await Product.updateOne(
+    {
+      _id: productId,
+      sizes: {
+        $elemMatch: {
+          _id: sizeId,
+          reservedQuantity: { $gte: quantity },
+        },
+      },
+    },
+    { $inc: { 'sizes.$.reservedQuantity': -quantity } },
+    session ? { session } : undefined
   );
+
+  return result.modifiedCount > 0;
 }
 
 // ─── Verify a reference directly against Paystack — never trust a body alone ──
@@ -72,55 +96,96 @@ export async function verify_transaction_with_paystack(reference: string): Promi
 // recover-before-cancel path. Idempotent: checks transaction.status first.
 
 export async function process_successful_payment(
-  order: InstanceType<typeof Order>,
-  transaction: InstanceType<typeof Transaction>,
+  order: IOrder,
+  transaction: ITransaction,
   verification: Awaited<ReturnType<typeof verify_transaction_with_paystack>>,
   source: 'webhook' | 'recovery'
 ) {
-  if (transaction.status === 'success') {
+  if (verification.amount !== undefined && verification.amount !== transaction.amount) {
+    const failure_reason = `Amount mismatch: expected ${transaction.amount}, Paystack reported ${verification.amount}`;
+    const failure_result = await process_failed_payment(
+      order,
+      transaction,
+      failure_reason,
+      verification.raw ?? null,
+      source
+    );
+
+    return {
+      ...failure_result,
+      amountMismatch: true,
+      pointsAwarded: 0,
+    };
+  }
+
+  const session = await mongoose.startSession();
+  let already_processed = false;
+
+  try {
+    await session.withTransaction(async () => {
+      const transaction_update = await Transaction.updateOne(
+        { _id: transaction._id, status: 'pending' },
+        {
+          $set: {
+            status: 'success',
+            paystackReference: String(verification.raw?.id ?? ''),
+            channel: verification.channel ?? null,
+            paidAt: verification.paidAt ? new Date(verification.paidAt) : new Date(),
+            verifiedAt: new Date(),
+            gatewayResponse: verification.raw ?? null,
+          },
+        },
+        { session }
+      );
+
+      if (transaction_update.modifiedCount === 0) {
+        already_processed = true;
+        return;
+      }
+
+      for (const item of order.items) {
+        const committed = await commit_item_stock(
+          item.product,
+          item.sizeId,
+          item.quantity,
+          session
+        );
+
+        if (!committed) {
+          throw new Error(`Unable to commit reserved stock for order ${order._id.toString()}`);
+        }
+      }
+
+      const order_update = await Order.updateOne(
+        { _id: order._id, status: 'pending_payment' },
+        {
+          $set: {
+            status: 'paid',
+            transaction: transaction._id,
+            cancelledAt: null,
+            cancelReason: null,
+          },
+        },
+        { session }
+      );
+
+      if (order_update.modifiedCount === 0) {
+        throw new Error(`Unable to mark order ${order._id.toString()} as paid`);
+      }
+
+      await Cart.updateOne(
+        { user: order.user, status: 'active' },
+        { $set: { items: [], status: 'converted' } },
+        { session }
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  if (already_processed) {
     return { alreadyProcessed: true, pointsAwarded: 0 };
   }
-
-  if (verification.amount !== undefined && verification.amount !== transaction.amount) {
-    transaction.status = 'failed';
-    transaction.failureReason = `Amount mismatch: expected ${transaction.amount}, Paystack reported ${verification.amount}`;
-    transaction.gatewayResponse = verification.raw ?? null;
-    await transaction.save();
-
-    writeAuditLog({
-      userId: order.user,
-      actorId: null,
-      action: AuditAction.PAYMENT_FAILED,
-      entityType: 'Transaction',
-      entityId: transaction._id.toString(),
-      oldValues: {},
-      newValues: { reason: 'amount_mismatch', source },
-      metadata: { resource: source, reference: transaction.reference },
-    });
-
-    return { alreadyProcessed: false, amountMismatch: true, pointsAwarded: 0 };
-  }
-
-  transaction.status = 'success';
-  transaction.paystackReference = String(verification.raw?.id ?? '');
-  transaction.channel = verification.channel ?? null;
-  transaction.paidAt = verification.paidAt ? new Date(verification.paidAt) : new Date();
-  transaction.verifiedAt = new Date();
-  transaction.gatewayResponse = verification.raw ?? null;
-  await transaction.save();
-
-  for (const item of order.items) {
-    await commit_item_stock(item.product, item.sizeId, item.quantity);
-  }
-
-  order.status = 'paid';
-  order.transaction = transaction._id;
-  await order.save();
-
-  await Cart.updateOne(
-    { user: order.user, status: 'active' },
-    { $set: { items: [], status: 'converted' } }
-  );
 
   const loyalty_result = await award_points_for_order(order.user, order.total);
 
@@ -141,34 +206,95 @@ export async function process_successful_payment(
 // ─── FAILURE — release stock, refund credit, cancel order. Idempotent too. ────
 
 export async function process_failed_payment(
-  order: InstanceType<typeof Order>,
-  transaction: InstanceType<typeof Transaction>,
+  order: IOrder,
+  transaction: ITransaction,
   reason: string,
   gatewayResponse: Record<string, unknown> | null,
-  source: 'webhook' | 'recovery' | 'timeout'
+  source: 'webhook' | 'recovery' | 'timeout' | 'initialize' | 'admin'
 ) {
-  if (transaction.status === 'failed' || order.status === 'cancelled') {
+  const session = await mongoose.startSession();
+  let already_processed = false;
+
+  try {
+    await session.withTransaction(async () => {
+      const transaction_update = await Transaction.updateOne(
+        { _id: transaction._id, status: 'pending' },
+        {
+          $set: {
+            status: 'failed',
+            failureReason: reason,
+            gatewayResponse: gatewayResponse,
+            verifiedAt: new Date(),
+          },
+        },
+        { session }
+      );
+
+      if (transaction_update.modifiedCount === 0) {
+        already_processed = true;
+        return;
+      }
+
+      for (const item of order.items) {
+        const released = await release_item_stock(
+          item.product,
+          item.sizeId,
+          item.quantity,
+          session
+        );
+
+        if (!released) {
+          const product = await Product.findOne({
+            _id: item.product,
+            'sizes._id': item.sizeId,
+          })
+            .select('sizes._id sizes.reservedQuantity')
+            .session(session)
+            .lean();
+
+          const size_exists = Boolean(
+            product?.sizes?.some((size) => size._id?.toString() === item.sizeId.toString())
+          );
+
+          if (!size_exists) {
+            throw new Error(`Unable to release reserved stock for order ${order._id.toString()}`);
+          }
+        }
+      }
+
+      const credit_applied = order.subtotal - order.discount + order.shippingFee - order.total;
+      if (credit_applied > 0) {
+        await Account.updateOne(
+          { userId: order.user },
+          { $inc: { storeCredit: credit_applied } },
+          { session }
+        );
+      }
+
+      const order_update = await Order.updateOne(
+        { _id: order._id, status: 'pending_payment' },
+        {
+          $set: {
+            status: 'cancelled',
+            cancelledAt: new Date(),
+            cancelReason: reason,
+            transaction: transaction._id,
+          },
+        },
+        { session }
+      );
+
+      if (order_update.modifiedCount === 0) {
+        throw new Error(`Unable to cancel order ${order._id.toString()}`);
+      }
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  if (already_processed) {
     return { alreadyProcessed: true };
   }
-
-  transaction.status = 'failed';
-  transaction.failureReason = reason;
-  transaction.gatewayResponse = gatewayResponse;
-  await transaction.save();
-
-  for (const item of order.items) {
-    await release_item_stock(item.product, item.sizeId, item.quantity);
-  }
-
-  const credit_applied = order.subtotal - order.discount + order.shippingFee - order.total;
-  if (credit_applied > 0) {
-    await Account.updateOne({ userId: order.user }, { $inc: { storeCredit: credit_applied } });
-  }
-
-  order.status = 'cancelled';
-  order.cancelledAt = new Date();
-  order.cancelReason = reason;
-  await order.save();
 
   writeAuditLog({
     userId: order.user,
@@ -188,10 +314,14 @@ export async function process_failed_payment(
 // future timeout cron, instead of ever blindly cancelling a stale order.
 
 export async function resolve_stale_pending_order(
-  staleOrder: InstanceType<typeof Order>
+  staleOrder: IOrder
 ): Promise<{ resolved: 'recovered_as_paid' | 'cancelled' | 'no_transaction' }> {
   const staleTransaction = await Transaction.findOne({ order: staleOrder._id }).sort({
     createdAt: -1,
+  });
+  console.log('resolve_stale_pending_order', {
+    orderId: staleOrder._id.toString(),
+    transactionId: staleTransaction?._id.toString() ?? null,
   });
 
   if (!staleTransaction) {
