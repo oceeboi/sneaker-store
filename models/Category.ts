@@ -60,6 +60,8 @@ const CategorySchema = new Schema<ICategory>(
 CategorySchema.index({ parent: 1, active: 1 });
 CategorySchema.index({ sortOrder: 1 });
 CategorySchema.index({ active: 1 });
+CategorySchema.index({ active: 1, sortOrder: 1, name: 1 });
+CategorySchema.index({ active: 1, slug: 1 });
 
 // ─── Pre-save: auto-generate slug ─────────────────────────────────────────────
 

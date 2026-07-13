@@ -94,6 +94,8 @@ const CollectionSchema = new Schema<ICollection>(
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 
 CollectionSchema.index({ active: 1, sortOrder: 1 });
+CollectionSchema.index({ active: 1, type: 1, sortOrder: 1, name: 1 });
+CollectionSchema.index({ active: 1, slug: 1 });
 
 // ─── Pre-save: auto-generate slug ─────────────────────────────────────────────
 

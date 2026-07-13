@@ -48,6 +48,8 @@ const BrandSchema = new Schema<IBrand>(
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 
 BrandSchema.index({ name: 1 });
+BrandSchema.index({ active: 1, name: 1 });
+BrandSchema.index({ active: 1, slug: 1 });
 
 // ─── Pre-save: auto-generate slug ─────────────────────────────────────────────
 
