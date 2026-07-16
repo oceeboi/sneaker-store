@@ -1,18 +1,24 @@
 import type { Metadata } from 'next';
 import { RootLayoutComp } from '@/components/layout/root-layout';
-import { Geist, Geist_Mono, Inter } from 'next/font/google';
+import { Geist, Geist_Mono, Inter, Arima } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { dir } from 'i18next';
 import { initServerI18next, getT, getResources } from 'next-i18next/server';
 import { I18nProvider } from 'next-i18next/client';
 import i18nConfig from '../i18n.config';
+import { Toaster } from '@/components/ui/sonner';
 
 initServerI18next(i18nConfig);
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
+});
+
+const arima = Arima({
+  subsets: ['latin'],
+  variable: '--font-arima',
 });
 
 const geistSans = Geist({
@@ -45,6 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         'antialiased',
         geistSans.variable,
         geistMono.variable,
+        arima.variable,
         'font-sans',
         inter.variable
       )}
@@ -54,6 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <RootLayoutComp>
           <I18nProvider language={lng} resources={resources}>
             {children}
+            <Toaster richColors position="top-center" />
           </I18nProvider>
         </RootLayoutComp>
       </body>

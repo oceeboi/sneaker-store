@@ -29,10 +29,10 @@ export const registerSchema = z.object({
     .string()
     .trim()
     .transform((value) => value.toLocaleUpperCase())
-    .refine((value) => value.length === 0 || /^(?=.{3,30}$)[a-zA-Z0-9_]+$/.test(value), {
-      message:
-        'Referral code must be 3-30 characters and contain only letters, numbers, or underscores',
-    })
+    // .refine((value) => value.length === 0 || /^(?=.{3,30}$)[a-zA-Z0-9_]+$/.test(value), {
+    //   message:
+    //     'Referral code must be 3-30 characters and contain only letters, numbers, or underscores',
+    // })
     .optional()
     .or(z.literal('')),
 });

@@ -94,6 +94,7 @@ export default function ProductDetail({
               fill
               sizes="280px"
               className="object-cover"
+              loading="eager"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-zinc-400">No image</div>

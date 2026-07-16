@@ -23,6 +23,7 @@ type AuthResult = {
   success: boolean;
   message: string;
 };
+type TokenValidationResult = { success: true } | { success: false; message: string };
 type RefreshResult =
   { success: true; role: UserRole } | { success: false; message: string; shouldLogout: boolean };
 
@@ -220,6 +221,30 @@ export class AuthService {
         success: false,
         message: 'An unexpected error occurred.',
         shouldLogout: false,
+      };
+    }
+  }
+
+  async validateResetToken(token: string): Promise<TokenValidationResult> {
+    const normalized_token = token.trim();
+    if (!normalized_token) {
+      return { success: false, message: 'Reset token is required.' };
+    }
+
+    try {
+      const response = await this.post<{ valid?: boolean }>('auth/token-validate', {
+        token: normalized_token,
+      });
+
+      if (response.valid) {
+        return { success: true };
+      }
+
+      return { success: false, message: 'This reset link is invalid or has expired.' };
+    } catch {
+      return {
+        success: false,
+        message: 'Unable to validate reset link right now. Please try again.',
       };
     }
   }

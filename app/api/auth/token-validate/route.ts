@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 
 import User from '@/models/User';
 import connect_to_database from '@/lib/db';
 import { hashToken } from '@/lib/auth/tokens';
-
-const token_hash_secret = process.env.TOKEN_HASH_SECRET;
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +25,6 @@ export async function POST(req: NextRequest) {
       .lean();
 
     if (!found_user) {
-      console.error('No user found with the provided token or token has expired');
       return NextResponse.json({ valid: false });
     }
 
