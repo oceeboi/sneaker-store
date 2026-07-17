@@ -1,1 +1,2 @@
-export * as CartModule from "./cart";
+export * as BrowserhistoryModule from './browser-history';
+export * as CartModule from './cart';

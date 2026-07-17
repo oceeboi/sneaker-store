@@ -86,7 +86,7 @@ export default function ProductDetail({
     <div className="mx-auto grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-[280px_1fr]">
       {/* Gallery */}
       <div>
-        <div className="relative aspect-square overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="relative aspect-square z-1 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
           {sortedMedia[activeMediaIdx] ? (
             <Image
               src={sortedMedia[activeMediaIdx].url}

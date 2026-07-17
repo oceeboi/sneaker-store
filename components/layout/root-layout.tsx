@@ -1,13 +1,25 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/query-client';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { NavUI } from '../navigation';
+import { NavUI, Sub_Navigation_Ui } from '../navigation';
 
 export function RootLayoutComp({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null; // or a skeleton/loading state
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <NavUI />
+      <Sub_Navigation_Ui />
       {children}
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
