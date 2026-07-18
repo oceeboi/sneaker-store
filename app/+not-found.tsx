@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function NotFoundPage() {
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-black px-6 py-20">
+    <main className="flex min-h-1/2 w-full items-center justify-center bg-black px-6 py-20">
       <div className="flex w-full max-w-md flex-col items-center text-center">
         <NotFoundIllustration className="h-40 w-40 text-white/90 sm:h-48 sm:w-48" />
 
