@@ -1,3 +1,4 @@
+'use client';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState as use_state, useEffect as use_effect, useRef as use_ref, JSX } from 'react';
 import { ImagePlaceholder } from '../shared';
