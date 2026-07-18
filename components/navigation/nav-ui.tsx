@@ -13,6 +13,8 @@ import { format_currency } from '@/utils/format';
 import { Sheet } from '../shared/sheet';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { Cart_Container } from '@/modules/cart';
+import { useUserQuery } from '@/hooks/user.hook';
+import { SessionProvider, useSession } from '@/lib/context/SessionContext';
 const MIN_SEARCH_LENGTH = 2;
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -153,6 +155,20 @@ export function NavUI() {
   const brand_menu_ref = use_ref<HTMLDivElement>(null);
   const router: AppRouterInstance = useRouter();
   const brands_query = useBrandsQuery({ limit: 8 });
+  const { isAuthenticated } = useSession();
+  const { data: user } = useUserQuery();
+  const account_sheet_navigationitems: NavigationType[] = isAuthenticated
+    ? [
+        {
+          name: 'My Account',
+          href: '/dashboard',
+          icon: auth_navigationitems[0]?.icon,
+        },
+        ...auth_navigationitems.filter(
+          (navigation) => navigation.href !== '/login' && navigation.href !== '/register'
+        ),
+      ]
+    : auth_navigationitems;
 
   useOnClickOutside(brand_menu_ref, () => set_is_brand_opened(false));
 
@@ -394,7 +410,11 @@ export function NavUI() {
 
                   <div className="hidden flex-col gap-0.5 text-left sm:flex">
                     <span className="text-xs text-[#7e7f88]">Welcome</span>
-                    <span className="text-xs leading-1.2">Sign in / Register</span>
+
+                    <span className="text-xs leading-1.2">
+                      {' '}
+                      {isAuthenticated ? user?.username : 'Sign in / Register'}
+                    </span>
                   </div>
                 </button>
               </Sheet.Trigger>
@@ -417,16 +437,18 @@ export function NavUI() {
                           <path d="M27.2 28.8h-22.4v-3.2c0-4.416 3.584-8 8-8h6.4c4.416 0 8 3.584 8 8v3.2zM8 25.6h16c0-2.64-2.16-4.8-4.8-4.8h-6.4c-2.64 0-4.8 2.16-4.8 4.8z"></path>
                         </svg>
                       </div>
-                      <div className="text-[18px] font-medium">Account</div>
+                      <div className="text-[18px] font-medium">
+                        {isAuthenticated ? user?.username : 'Account'}
+                      </div>
                     </div>
                   </Sheet.Title>
                 </Sheet.Header>
 
                 <div className="flex flex-col gap-4 mt-10 overflow-y-auto">
-                  {auth_navigationitems.map((navigation, index) => {
+                  {account_sheet_navigationitems.map((navigation) => {
                     return (
                       <div
-                        key={index}
+                        key={navigation.href}
                         onClick={() => route_to_page(navigation.href)}
                         className="px-8.5 py-3.75 flex hover:bg-[#f4f1ea] gap-4"
                       >

@@ -76,6 +76,6 @@ function redirectToLogin(req: NextRequest, reason: string): NextResponse {
 function forbidden(req: NextRequest): NextResponse {
   // Redirect to a 403 page rather than exposing a blank screen
   const url = req.nextUrl.clone();
-  url.pathname = '/403';
+  url.pathname = '/404';
   return NextResponse.redirect(url);
 }

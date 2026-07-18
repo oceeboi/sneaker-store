@@ -4,6 +4,7 @@ export const PUBLIC_ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/verify',
+  '/whats-new',
 ] as const;
 
 export const DEFAULT_AUTHENTICATED_REDIRECT = '/dashboard';
