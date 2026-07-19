@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "bun --max-old-space-size=8192 next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "bun --max-old-space-size=8192 next start",
     "lint": "eslint",
     "db:up": "docker compose down -v && docker compose up -d",
     "db:down": "docker compose down -v",

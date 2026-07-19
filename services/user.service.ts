@@ -212,7 +212,7 @@ export class UserService {
 
   async getReferral(): Promise<ServiceResult<ReferralData>> {
     try {
-      const res = await this.get<{ data: { referral: ReferralData } }>('user/reward');
+      const res = await this.get<{ data: { referral: ReferralData } }>('user/rewards');
       return { success: true, data: res.data.referral };
     } catch (error) {
       return {
