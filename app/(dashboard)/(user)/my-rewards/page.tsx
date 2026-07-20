@@ -29,7 +29,7 @@ export default function RewardPage({}) {
   }, []);
 
   return (
-    <section className="p-5 lg:p-8">
+    <section className="p-5 border rounded lg:p-8">
       <div className="p-10 mb-7.5 rounded-[8px] bg-[linear-gradient(135deg,#1a1a1a_0%,#2d2d2d_25%,#1a1a1a_50%,#2d2d2d_75%,#1a1a1a_100%)]">
         <div className="flex  mb-7.5 gap-6.25 items-center">
           <div className="w-14 h-14 bg-blue-400 rounded" />

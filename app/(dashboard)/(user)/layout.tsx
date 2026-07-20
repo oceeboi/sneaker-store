@@ -10,7 +10,7 @@ export default function ({ children }: { children: React.ReactNode }) {
         <HeaderBox />
         <section className="mt-8 grid items-start gap-6 lg:mt-10 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[19.5rem_minmax(0,1fr)]">
           <User_Dashboard_Nav />
-          <div className="border">{children}</div>
+          <div className="">{children}</div>
         </section>
       </div>
     </section>

@@ -2,47 +2,69 @@ import { z } from 'zod';
 
 export const updateUserSchema = z
   .object({
-    email: z.string().email('Enter a valid email address').trim().toLowerCase().optional(),
+    email: z.string().trim().toLowerCase().email('Enter a valid email address').optional(),
 
     username: z
       .string()
-      .min(3, 'Username must be at least 3 characters')
-      .max(30, 'Username must be at most 30 characters')
       .trim()
       .toLowerCase()
+      .min(3, 'Username must be at least 3 characters')
+      .max(30, 'Username must be at most 30 characters')
       .regex(/^[a-zA-Z0-9_]+$/, 'Username may only contain letters, numbers, and underscores')
       .optional(),
 
-    // Support both firstName and firstname payload shapes.
-    firstName: z.string().trim().min(1).max(50).optional(),
-    firstname: z.string().trim().min(1).max(50).optional(),
+    firstName: z
+      .string()
+      .trim()
+      .min(1, 'First name cannot be empty')
+      .max(50, 'First name must be at most 50 characters')
+      .optional(),
+    firstname: z
+      .string()
+      .trim()
+      .min(1, 'First name cannot be empty')
+      .max(50, 'First name must be at most 50 characters')
+      .optional(),
 
-    // support both lastName and lastname payload shapes.
-    lastName: z.string().trim().min(1).max(50).optional(),
-    lastname: z.string().trim().min(1).max(50).optional(),
+    lastName: z
+      .string()
+      .trim()
+      .min(1, 'Last name cannot be empty')
+      .max(50, 'Last name must be at most 50 characters')
+      .optional(),
+    lastname: z
+      .string()
+      .trim()
+      .min(1, 'Last name cannot be empty')
+      .max(50, 'Last name must be at most 50 characters')
+      .optional(),
 
-    phone: z.string().trim().min(7, 'Phone is too short').max(20, 'Phone is too long').optional(),
+    phone: z
+      .string()
+      .trim()
+      .min(7, 'Phone number must be at least 7 characters')
+      .max(20, 'Phone number must be at most 20 characters')
+      .optional(),
 
-    // Support both avatar and image payload shapes.
-    avatar: z.string().url('Avatar must be a valid URL').trim().optional(),
-    image: z.string().url('Image must be a valid URL').trim().optional(),
+    avatar: z.string().trim().url('Avatar must be a valid URL').optional(),
+    image: z.string().trim().url('Image must be a valid URL').optional(),
 
     dateOfBirth: z
-      .preprocess(
-        (value) => {
-          if (value === null || value === undefined || value === '') return undefined;
-          if (value instanceof Date) return value;
-          return new Date(String(value));
-        },
-        z.date().max(new Date(), 'dateOfBirth must not be in the future')
-      )
+      .string()
+      .trim()
+      .refine((val) => !isNaN(Date.parse(val)), {
+        message: 'Date of birth must be a valid date (e.g., YYYY-MM-DD)',
+      })
+      .refine((val) => new Date(val) <= new Date(), {
+        message: 'Date of birth cannot be in the future',
+      })
       .optional(),
 
     gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
   })
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field is required for update',
+    message: 'At least one field is required to perform an update',
   });
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

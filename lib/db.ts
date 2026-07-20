@@ -2,15 +2,24 @@ import Database from '@/database/database';
 
 async function connect_to_database() {
   const db = Database.getInstance();
-  await import('@/models/Product');
-  await import('@/models/Brand');
-  await import('@/models/Category');
-  await import('@/models/Collection');
-  await import('@/models/Auditlog');
-  await import('@/models/User');
-  await import('@/models/Order');
-  await import('@/models/PlatformSettings');
-  await import('@/models/Transaction');
+  await Promise.all([
+    import('@/models/Product'),
+    import('@/models/Brand'),
+    import('@/models/Category'),
+    import('@/models/Collection'),
+    import('@/models/Auditlog'),
+    import('@/models/User'),
+    import('@/models/UserProfile'),
+    import('@/models/Account'),
+    import('@/models/Address'),
+    import('@/models/Cart'),
+    import('@/models/InventoryMovement'),
+    import('@/models/Notification'),
+    import('@/models/Order'),
+    import('@/models/Referral'),
+    import('@/models/PlatformSettings'),
+    import('@/models/Transaction'),
+  ]);
   await db.connect();
 }
 
