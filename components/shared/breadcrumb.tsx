@@ -70,7 +70,7 @@ export function Breadcrumb({ aliases = {}, homeLabel = 'Home' }: BreadcrumbProps
               {isLast ? (
                 // Last item represents the current page: unclickable and bolded
                 <span
-                  className="text-gray-900 font-semibold capitalize truncate max-w-[160px] sm:max-w-xs"
+                  className="text-gray-900 font-semibold capitalize truncate max-w-40 sm:max-w-xs"
                   aria-current="page"
                 >
                   {crumb.title}
@@ -79,7 +79,7 @@ export function Breadcrumb({ aliases = {}, homeLabel = 'Home' }: BreadcrumbProps
                 // Regular inner link paths
                 <Link
                   href={crumb.href}
-                  className="text-gray-500 hover:text-gray-900 transition-colors duration-200 capitalize truncate max-w-[120px]"
+                  className="text-gray-500 hover:text-gray-900 transition-colors duration-200 capitalize truncate max-w-30"
                 >
                   {crumb.title}
                 </Link>
