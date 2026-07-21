@@ -84,10 +84,10 @@ export const order_columns = [
     id: 'actions',
     header: '',
     cell: (props) => {
-      const orderId = props.row.original.id;
+      const orderNumber = props.row.original.orderNumber;
       return (
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/orders?id=${orderId}`}>View</Link>
+          <Link href={`/orders/${encodeURIComponent(orderNumber)}`}>View</Link>
         </Button>
       );
     },

@@ -67,7 +67,7 @@ function OrderCard({ order }: { order: OrderSummaryData }) {
 
       <div className="mt-4">
         <Button asChild variant="outline" size="sm" className="w-full">
-          <Link href={`/orders?id=${order.id}`}>View Order</Link>
+          <Link href={`/orders/${encodeURIComponent(order.orderNumber)}`}>View Order</Link>
         </Button>
       </div>
     </article>

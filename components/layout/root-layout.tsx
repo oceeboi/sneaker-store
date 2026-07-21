@@ -24,7 +24,7 @@ export function RootLayoutComp({ children }: { children: React.ReactNode }) {
         <Sub_Navigation_Ui />
         {children}
         <Footer />
-        {/* <ReactQueryDevtools initialIsOpen={false} /> */}
+        <ReactQueryDevtools initialIsOpen={false} />
         <Mobile_Navigation_UI />
       </QueryClientProvider>
     </SessionProvider>

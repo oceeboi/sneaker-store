@@ -16,6 +16,7 @@ import type {
   GetAdminOrdersParams,
   GetOrdersParams,
   OrderPagination,
+  UserOrderDetailData,
   OrderSummaryData,
   UpdateAdminOrderInput,
 } from '@/services/order.service';
@@ -41,6 +42,8 @@ export const orderKeys = {
   all: ['orders'] as const,
   list: (params?: GetOrdersParams) => [...orderKeys.all, 'list', params ?? {}] as const,
   detail: (orderId: string) => [...orderKeys.all, 'detail', orderId] as const,
+  detailByOrderNumber: (orderNumber: string) =>
+    [...orderKeys.all, 'detail-order-number', orderNumber] as const,
   adminAll: () => [...orderKeys.all, 'admin'] as const,
   adminList: (params?: GetAdminOrdersParams) =>
     [...orderKeys.adminAll(), 'list', params ?? {}] as const,
@@ -75,6 +78,20 @@ export function useOrderQuery(orderId: string, options?: QueryOptionsOf<OrderSum
     queryKey: orderKeys.detail(orderId),
     queryFn: async () => unwrapResult(await orderService.getOrderById(orderId)),
     enabled: Boolean(orderId),
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    ...options,
+  });
+}
+
+export function useOrderByOrderNumberQuery(
+  orderNumber: string,
+  options?: QueryOptionsOf<UserOrderDetailData>
+) {
+  return useQuery({
+    queryKey: orderKeys.detailByOrderNumber(orderNumber),
+    queryFn: async () => unwrapResult(await orderService.getOrderByOrderNumber(orderNumber)),
+    enabled: Boolean(orderNumber),
     staleTime: 15_000,
     gcTime: 5 * 60_000,
     ...options,

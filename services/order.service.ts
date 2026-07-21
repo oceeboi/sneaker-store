@@ -24,6 +24,30 @@ export type AdminOrderItem = {
   subtotal: number;
 };
 
+export type UserOrderItem = {
+  productId: string;
+  productName: string;
+  sizeId: string;
+  size: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type UserOrderShippingAddress = {
+  addressId: string | null;
+  label: string | null;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  street: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string | null;
+};
+
 export type OrderSummaryData = {
   id: string;
   orderNumber: string;
@@ -46,6 +70,11 @@ export type AdminOrderSummaryData = OrderSummaryData & {
 
 export type AdminOrderDetailData = AdminOrderSummaryData & {
   items: AdminOrderItem[];
+};
+
+export type UserOrderDetailData = OrderSummaryData & {
+  items: UserOrderItem[];
+  shippingAddress: UserOrderShippingAddress;
 };
 
 export type OrderPagination = {
@@ -206,6 +235,27 @@ export class OrderService {
       return {
         success: false,
         message: OrderService.fromHttpError(error, 'Failed to fetch order.', {
+          404: 'Order not found.',
+        }),
+      };
+    }
+  }
+
+  async getOrderByOrderNumber(orderNumber: string): Promise<ServiceResult<UserOrderDetailData>> {
+    const normalized_order_number = orderNumber.trim();
+    if (!normalized_order_number) {
+      return { success: false, message: 'Order number is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { order: UserOrderDetailData } }>(
+        `orders/${encodeURIComponent(normalized_order_number)}`
+      );
+      return { success: true, data: response.data.order };
+    } catch (error) {
+      return {
+        success: false,
+        message: OrderService.fromHttpError(error, 'Failed to fetch order details.', {
           404: 'Order not found.',
         }),
       };
