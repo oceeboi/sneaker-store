@@ -95,23 +95,29 @@ const user_navigations_dashboard: NavigationRouteType[] = [
       </svg>
     ),
   },
+
   {
-    name: 'Payment Method',
-    href: '/payments-method',
+    name: 'My Transactions',
+    href: '/transactions',
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        fill="none"
         viewBox="0 0 24 24"
-        strokeWidth={1.5}
+        fill="none"
         stroke="currentColor"
-        className="w-4.5 h-4.5"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="size-5"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"
-        />
+        {/* Main transaction card / receipt outline */}
+        <rect width="20" height="14" x="2" y="5" rx="3" />
+
+        {/* Transaction flow arrows */}
+        <path d="M7 10h6" />
+        <path d="m10 7 3 3-3 3" />
+        <path d="M17 14H11" />
+        <path d="m14 17-3-3 3-3" />
       </svg>
     ),
   },
@@ -198,7 +204,7 @@ export function User_Dashboard_Nav() {
 
   return (
     <div className="py-5.75 border min-w-[33%] rounded">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         {user_navigation_items.map((user_navigation_item, index) => {
           const is_active = is_active_link(user_navigation_item.href);
           return (

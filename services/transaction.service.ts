@@ -22,6 +22,45 @@ export type TransactionData = {
   updatedAt: Date;
 };
 
+export type TransactionOrderItem = {
+  productId: string;
+  productName: string;
+  sizeId: string;
+  size: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type TransactionOrderShippingAddress = {
+  addressId: string | null;
+  label: string | null;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  street: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string | null;
+};
+
+export type TransactionLinkedOrder = {
+  id: string;
+  orderNumber: string;
+  status: string;
+  total: number;
+  currency: string;
+  createdAt: Date;
+  items: TransactionOrderItem[];
+  shippingAddress: TransactionOrderShippingAddress;
+};
+
+export type TransactionDetailData = TransactionData & {
+  order: TransactionLinkedOrder | null;
+};
+
 export type TransactionPagination = {
   page: number;
   limit: number;
@@ -186,6 +225,30 @@ export class TransactionService {
       return {
         success: false,
         message: TransactionService.fromHttpError(error, 'Failed to fetch transaction.', {
+          404: 'Transaction not found.',
+        }),
+      };
+    }
+  }
+
+  async getTransactionByReference(
+    reference: string
+  ): Promise<ServiceResult<TransactionDetailData>> {
+    const normalized_reference = reference.trim();
+    if (!normalized_reference) {
+      return { success: false, message: 'Transaction reference is required.' };
+    }
+
+    try {
+      const response = await this.get<{ data: { transaction: TransactionDetailData } }>(
+        `transactions/${encodeURIComponent(normalized_reference)}`
+      );
+
+      return { success: true, data: response.data.transaction };
+    } catch (error) {
+      return {
+        success: false,
+        message: TransactionService.fromHttpError(error, 'Failed to fetch transaction details.', {
           404: 'Transaction not found.',
         }),
       };

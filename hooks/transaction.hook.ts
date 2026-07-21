@@ -12,6 +12,7 @@ import {
 import { transactionService } from '@/services/transaction.service';
 import type {
   GetAdminTransactionsParams,
+  TransactionDetailData,
   GetTransactionsParams,
   TransactionData,
   TransactionPagination,
@@ -39,6 +40,8 @@ export const transactionKeys = {
   all: ['transactions'] as const,
   list: (params?: GetTransactionsParams) => [...transactionKeys.all, 'list', params ?? {}] as const,
   detail: (transactionId: string) => [...transactionKeys.all, 'detail', transactionId] as const,
+  detailByReference: (reference: string) =>
+    [...transactionKeys.all, 'detail-reference', reference] as const,
   adminAll: () => [...transactionKeys.all, 'admin'] as const,
   adminList: (params?: GetAdminTransactionsParams) =>
     [...transactionKeys.adminAll(), 'list', params ?? {}] as const,
@@ -77,6 +80,21 @@ export function useTransactionQuery(
     queryKey: transactionKeys.detail(transactionId),
     queryFn: async () => unwrapResult(await transactionService.getTransactionById(transactionId)),
     enabled: Boolean(transactionId),
+    staleTime: 15_000,
+    gcTime: 5 * 60_000,
+    ...options,
+  });
+}
+
+export function useTransactionByReferenceQuery(
+  reference: string,
+  options?: QueryOptionsOf<TransactionDetailData>
+) {
+  return useQuery({
+    queryKey: transactionKeys.detailByReference(reference),
+    queryFn: async () =>
+      unwrapResult(await transactionService.getTransactionByReference(reference)),
+    enabled: Boolean(reference),
     staleTime: 15_000,
     gcTime: 5 * 60_000,
     ...options,
