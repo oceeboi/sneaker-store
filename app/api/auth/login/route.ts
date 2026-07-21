@@ -48,12 +48,12 @@ export async function POST(req: NextRequest) {
   const { identifier, password } = validation_result.data;
   const keyed_request = with_login_identifier(req, identifier);
 
-  const rate_limited_response = await apply_rate_limit(
-    keyed_request,
-    login_limiter,
-    'Too many login attempts. Please try again shortly.'
-  );
-  if (rate_limited_response) return rate_limited_response;
+  // const rate_limited_response = await apply_rate_limit(
+  //   keyed_request,
+  //   login_limiter,
+  //   'Too many login attempts. Please try again shortly.'
+  // );
+  // if (rate_limited_response) return rate_limited_response;
 
   await connect_to_database();
 
