@@ -111,7 +111,7 @@ export async function PATCH(req: NextRequest) {
     user_updates.phoneVerified = false;
   }
 
-  const avatar_url = payload.avatar ?? payload.image;
+  const avatar_url = payload.avatar;
   if (avatar_url !== undefined) {
     profile_updates.avatar = avatar_url;
   }

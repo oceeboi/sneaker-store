@@ -3,6 +3,8 @@
 import { Field, Input, PasswordInput } from '@/components/shared/form';
 import { SearchableSelect } from '@/components/shared/search-input';
 import { useChangePasswordMutation, useUpdateUserMutation, useUserQuery } from '@/hooks/user.hook';
+import { UploadCard } from '@/modules/cloudinary/components';
+import type { CloudinaryAsset } from '@/modules/cloudinary/types';
 import {
   PasswordChangeInput,
   passwordChangeSchema,
@@ -55,9 +57,34 @@ function to_profile_form_values(user_info: UserData | undefined): UpdateUserInpu
     lastName: user_info?.profile?.lastName ?? '',
     phone: user_info?.profile?.phone ?? '',
     avatar: user_info?.profile?.avatar ?? '',
-    image: user_info?.profile?.avatar ?? '',
     dateOfBirth: format_date_for_input(user_info?.profile?.dateOfBirth),
     gender: user_info?.profile?.gender ?? undefined,
+  };
+}
+
+function to_cloudinary_asset(value: string): CloudinaryAsset {
+  return {
+    api_key: '',
+    asset_folder: '',
+    asset_id: value,
+    bytes: 0,
+    created_at: new Date(0).toISOString(),
+    display_name: 'Profile avatar',
+    etag: '',
+    format: '',
+    height: 0,
+    original_filename: 'profile-avatar',
+    placeholder: false,
+    public_id: '',
+    resource_type: 'image',
+    secure_url: value,
+    signature: '',
+    tags: ['profile-avatar'],
+    type: 'upload',
+    url: value,
+    version: 1,
+    version_id: '',
+    width: 0,
   };
 }
 
@@ -262,38 +289,34 @@ export default function ProfilePage() {
             </Field>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Field
-              label="Avatar URL"
-              error={user_update_form.formState.errors.avatar?.message}
-              delay={100}
-              xx={false}
-            >
-              <Input
-                {...user_update_form.register('avatar')}
-                type="url"
-                placeholder="https://..."
-                autoComplete="url"
-                hasError={!!user_update_form.formState.errors.avatar}
-                disabled={user_update_form.formState.isSubmitting || is_user_loading}
-              />
-            </Field>
-
-            <Field
-              label="Image URL"
-              error={user_update_form.formState.errors.image?.message}
-              delay={100}
-              xx={false}
-            >
-              <Input
-                {...user_update_form.register('image')}
-                type="url"
-                placeholder="https://..."
-                autoComplete="url"
-                hasError={!!user_update_form.formState.errors.image}
-                disabled={user_update_form.formState.isSubmitting || is_user_loading}
-              />
-            </Field>
+          <div className="grid ">
+            <Controller
+              name="avatar"
+              control={user_update_form.control}
+              render={({ field: { onChange, value }, fieldState: { error } }) => (
+                <div className=" ">
+                  <UploadCard
+                    preset="profile-avatar"
+                    resourceType="image"
+                    value={value ? to_cloudinary_asset(value) : null}
+                    onChange={(asset) => {
+                      const avatar_url = asset?.secure_url ?? asset?.url ?? '';
+                      onChange(avatar_url);
+                    }}
+                    title="Profile picture"
+                    description="Upload a clear profile photo. JPG, PNG, and WebP are supported up to 5MB."
+                    disabled={
+                      user_update_form.formState.isSubmitting ||
+                      is_user_loading ||
+                      is_update_user_pending
+                    }
+                    className="h-full"
+                    accept="image/*"
+                  />
+                  {error && <p className="text-red-500 text-xs mt-1">{error.message}</p>}
+                </div>
+              )}
+            />
           </div>
 
           <div className="grid gap-5 lg:max-w-md">

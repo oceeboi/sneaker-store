@@ -6,6 +6,14 @@ import { format_currency } from '@/utils/format';
 import { Typewriter } from './typewritter-effect';
 import { AnimatedCounter } from './animated-counter';
 import { SneakerGraffitiHeroArt } from './graffit-ui';
+import {
+  Avatar,
+  AvatarBadge,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
+} from '@/components/ui/avatar';
 
 export function HeaderBox() {
   const { data: account } = useAccountQuery();
@@ -23,8 +31,17 @@ export function HeaderBox() {
       <div className="py-6.25 px-5 flex justify-between  lg:flex-row gap-5 text-white lg:rounded bg-black">
         <div className="flex flex-col gap-5">
           <div className="flex items-start gap-3">
-            <div className="h-15 w-15 flex items-center uppercase font-bold text-[20px] justify-center rounded-full bg-linear-to-bl from-[#f44f22] to-[#fafa1a] ">
-              <p>{user?.username[0]}</p>
+            <div className="h-15 w-15 flex items-center uppercase  justify-center rounded-full  ">
+              <Avatar className="h-15 w-15">
+                <AvatarImage
+                  src={user?.profile?.avatar ?? ''}
+                  alt="profile-picture"
+                  className="grayscale"
+                />
+                <AvatarFallback className="bg-linear-to-bl from-[#f44f22] font-bold text-[20px] to-[#fafa1a] text-white">
+                  {user?.username[0]}
+                </AvatarFallback>
+              </Avatar>
             </div>
             <div className="flex flex-col gap-2  items-start">
               <h4 className="text-[20px] font-bold lowercase">{user?.username}</h4>

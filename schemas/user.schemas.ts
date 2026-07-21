@@ -47,7 +47,6 @@ export const updateUserSchema = z
       .optional(),
 
     avatar: z.string().trim().url('Avatar must be a valid URL').optional(),
-    image: z.string().trim().url('Image must be a valid URL').optional(),
 
     dateOfBirth: z
       .string()

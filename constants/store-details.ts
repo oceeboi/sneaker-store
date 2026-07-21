@@ -2,6 +2,7 @@ const STORE_DETAILS = {
   name: 'Sneaker Luxury',
   domain: 'http://localhost:3000',
   support_email: '',
+  folder: 'sneaker-store',
 };
 
 const STORE_SOCIALS = [
