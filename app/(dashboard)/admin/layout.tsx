@@ -1,7 +1,16 @@
+'use client';
+import { AdminDashboard_Navigation } from '@/components/navigation';
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 bg-[#f7f8f9]  flex flex-col items-center justify-center px-6 py-12 min-h-screen overflow-y-auto">
-      {children}
-    </div>
+    <section className="relative pb-16 pt-10 sm:pt-12 lg:pb-20">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-linear-to-b from-black/3 to-transparent" />
+      <div className="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section className="mt-8 grid items-start gap-6 lg:mt-10 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[19.5rem_minmax(0,1fr)]">
+          <AdminDashboard_Navigation />
+          {children}
+        </section>
+      </div>
+    </section>
   );
 }
