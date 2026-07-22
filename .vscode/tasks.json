@@ -90,6 +90,21 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "typecheck-categories-page",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		}
 	]
 }
