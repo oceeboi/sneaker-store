@@ -1,5 +1,6 @@
 'use client';
-import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
+import React, { forwardRef, useState } from 'react';
 function Field({
   label,
   error,
@@ -52,6 +53,37 @@ function Input({ hasError, className = '', ...rest }: InputProps) {
   );
 }
 
+type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  hasError?: boolean;
+};
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ hasError, className, disabled, rows = 4, ...props }, ref) => {
+    return (
+      <textarea
+        ref={ref}
+        rows={rows}
+        disabled={disabled}
+        className={cn(
+          // Base styles matching your Input UI
+          'w-full px-4 py-3 rounded-md border text-sm bg-white text-gray-900',
+          'placeholder:text-gray-400 outline-none transition-all duration-200 resize-y',
+          'focus:ring-2 focus:ring-black/30 focus:border-black',
+          // Error vs Normal state
+          hasError
+            ? 'border-red-400 bg-red-50 focus:ring-red-200 focus:border-red-500 text-red-900 placeholder:text-red-300'
+            : 'border-gray-200 hover:border-gray-300',
+          // Disabled state styling
+          disabled && 'cursor-not-allowed bg-gray-100 opacity-60 hover:border-gray-200',
+          // Custom class overrides
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
+Textarea.displayName = 'Textareas';
 // ─── Password input with show/hide ────────────────────────────────────────────
 function PasswordInput({ hasError, ...rest }: Omit<InputProps, 'type'>) {
   const [visible, setVisible] = useState<boolean>(false);

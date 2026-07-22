@@ -7,8 +7,17 @@ const object_id_schema = z
   .trim()
   .regex(/^[a-f\d]{24}$/i, 'Invalid object id');
 
-const optional_trimmed_string = z.string().trim().min(1).optional();
-const nullable_trimmed_string = z.string().trim().min(1).nullable().optional();
+const optional_trimmed_string = z
+  .string()
+  .trim()
+  .min(1, { message: 'String cannot be empty if provided.' })
+  .optional();
+const nullable_trimmed_string = z
+  .string()
+  .trim()
+  .min(1, { message: 'Value must contain at least 1 character.' })
+  .nullable()
+  .optional();
 const optional_url_string = z.string().trim().url('Must be a valid URL').nullable().optional();
 
 const collection_rule_schema = z.object({
