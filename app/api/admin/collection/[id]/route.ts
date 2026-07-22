@@ -109,7 +109,13 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/coll
   }
 
   const payload = validation_result.data;
-  const manual_slug = payload.slug ? slugify(payload.slug) : undefined;
+  let manual_slug: string | undefined;
+
+  if (payload.slug !== undefined) {
+    manual_slug = slugify(payload.slug);
+  } else if (payload.name !== undefined) {
+    manual_slug = slugify(payload.name);
+  }
 
   if (manual_slug) {
     const existing_slug_owner = await Collection.findOne({
