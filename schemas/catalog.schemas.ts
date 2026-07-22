@@ -7,18 +7,22 @@ const object_id_schema = z
   .trim()
   .regex(/^[a-f\d]{24}$/i, 'Invalid object id');
 
-const optional_trimmed_string = z
-  .string()
-  .trim()
-  .min(1, { message: 'String cannot be empty if provided.' })
-  .optional();
-const nullable_trimmed_string = z
-  .string()
-  .trim()
-  .min(1, { message: 'Value must contain at least 1 character.' })
-  .nullable()
-  .optional();
-const optional_url_string = z.string().trim().url('Must be a valid URL').nullable().optional();
+const optional_trimmed_string = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+  z.string().trim().min(1, 'Cannot be empty if provided').optional()
+);
+
+// Helper: Transforms "" into null, or validates min(1) if provided
+const nullable_trimmed_string = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? null : val),
+  z.string().trim().min(1, 'Value must contain at least 1 character.').nullable().optional()
+);
+
+// Helper: Transforms "" into undefined, or validates URL if provided
+const optional_url_string = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+  z.string().trim().url('Must be a valid URL').nullable().optional()
+);
 
 const collection_rule_schema = z.object({
   field: z.enum(['tags', 'brand', 'category', 'gender', 'productType']),
@@ -196,3 +200,5 @@ export const updateProductSchema = product_base_schema
       });
     }
   });
+
+export const dataschema = z.toJSONSchema(createBrandSchema);

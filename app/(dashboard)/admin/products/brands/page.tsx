@@ -32,6 +32,10 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { z } from 'zod';
+
+type CreateBrandFormValues = z.input<typeof createBrandSchema>;
+type UpdateBrandFormValues = z.input<typeof updateBrandSchema>;
 
 function to_cloudinary_asset(value: string): CloudinaryAsset {
   return {
@@ -99,7 +103,7 @@ const column_helper = createColumnHelper<BrandData>();
 
 export default function AdminProductsBrandsPage() {
   const [search, set_search] = useState('');
-  const [selected_brand_id, set_selected_brand_id] = useState('');
+  const [selected_brand_id, set_selected_brand_id] = useState<string | null>(null);
   const debounced_search = useDebouncedValue(search, 300);
 
   const {
@@ -112,14 +116,14 @@ export default function AdminProductsBrandsPage() {
     data: selected_brand,
     isLoading: is_selected_brand_loading,
     error: selected_brand_error,
-  } = useAdminBrandQuery(selected_brand_id);
+  } = useAdminBrandQuery(selected_brand_id ?? '');
 
   const { mutate: create_brand, isPending: is_creating } = useCreateAdminBrandMutation();
   const { mutate: update_brand, isPending: is_updating } = useUpdateAdminBrandMutation();
   const { mutate: replace_brand, isPending: is_replacing } = useReplaceAdminBrandMutation();
   const { mutate: delete_brand, isPending: is_deleting } = useDeleteAdminBrandMutation();
 
-  const brand_create_form = useForm<CreateBrandInput>({
+  const brand_create_form = useForm<CreateBrandFormValues, unknown, CreateBrandInput>({
     resolver: zodResolver(createBrandSchema),
     defaultValues: {
       name: '',
@@ -131,7 +135,7 @@ export default function AdminProductsBrandsPage() {
     },
   });
 
-  const brand_update_form = useForm<UpdateBrandInput>({
+  const brand_update_form = useForm<UpdateBrandFormValues, unknown, UpdateBrandInput>({
     resolver: zodResolver(updateBrandSchema),
     defaultValues: {
       name: undefined,
@@ -143,7 +147,7 @@ export default function AdminProductsBrandsPage() {
     },
   });
 
-  const brand_replace_form = useForm<CreateBrandInput>({
+  const brand_replace_form = useForm<CreateBrandFormValues, unknown, CreateBrandInput>({
     resolver: zodResolver(createBrandSchema),
     defaultValues: {
       name: '',
@@ -313,10 +317,14 @@ export default function AdminProductsBrandsPage() {
           const brand = props.row.original;
           const is_selected = selected_brand_id === brand.id;
 
+          function run_code() {
+            is_selected ? set_selected_brand_id(null) : set_selected_brand_id(brand.id);
+          }
+
           return (
             <button
               type="button"
-              onClick={() => set_selected_brand_id(brand.id)}
+              onClick={run_code}
               className="rounded border border-neutral-200 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
             >
               {is_selected ? 'Selected' : 'View'}
@@ -341,6 +349,45 @@ export default function AdminProductsBrandsPage() {
   const is_create_loading = brand_create_form.formState.isSubmitting || is_creating;
   const selected_brand_title = selected_brand?.name ?? 'Select a brand';
 
+  function render_mobile_brand_card(brand: BrandData) {
+    const is_selected = selected_brand_id === brand.id;
+
+    return (
+      <article key={brand.id} className="rounded border border-neutral-200 bg-white p-4">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-wide text-neutral-500">Brand</p>
+            <p className="text-sm font-semibold text-neutral-900">{brand.name}</p>
+          </div>
+          <span className={brand.active ? 'text-xs text-green-700' : 'text-xs text-red-600'}>
+            {brand.active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+
+        <dl className="grid grid-cols-1 gap-2 text-sm">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-neutral-500">Slug</dt>
+            <dd className="mt-1 break-all text-neutral-700">{brand.slug}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-neutral-500">Updated</dt>
+            <dd className="mt-1 text-neutral-700">{format_date(brand.updatedAt)}</dd>
+          </div>
+        </dl>
+
+        <button
+          type="button"
+          onClick={() =>
+            is_selected ? set_selected_brand_id(null) : set_selected_brand_id(brand.id)
+          }
+          className="mt-4 w-full rounded border border-neutral-200 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+        >
+          {is_selected ? 'Selected' : 'View'}
+        </button>
+      </article>
+    );
+  }
+
   return (
     <section className="flex flex-col gap-6">
       <section className="rounded border bg-white/90 p-5 sm:p-6 lg:p-8">
@@ -353,7 +400,7 @@ export default function AdminProductsBrandsPage() {
 
         <div className="grid gap-6 ">
           <section className="rounded border border-neutral-200 bg-white p-4 sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h4 className="text-base font-semibold text-neutral-900">Brand List</h4>
               <p className="text-sm text-neutral-500">Total: {brands?.total ?? 0}</p>
             </div>
@@ -375,51 +422,58 @@ export default function AdminProductsBrandsPage() {
               </div>
             ) : null}
 
-            <div className="rounded border border-neutral-200">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((header_group) => (
-                    <TableRow
-                      key={header_group.id}
-                      className="bg-neutral-50/80 hover:bg-neutral-50/80"
-                    >
-                      {header_group.headers.map((header) => (
-                        <TableHead key={header.id} className="px-4 py-3">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
+            {is_brands_loading ? (
+              <div className="grid gap-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={`brand-list-skeleton-${index}`}
+                    className="h-24 animate-pulse rounded border border-neutral-200 bg-neutral-100"
+                  />
+                ))}
+              </div>
+            ) : brand_rows.length === 0 ? (
+              <div className="rounded border border-dashed border-neutral-300 bg-white p-6 text-center">
+                <p className="text-sm text-neutral-500">No brands found.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 lg:hidden">
+                  {brand_rows.map(render_mobile_brand_card)}
+                </div>
+
+                <div className="hidden rounded border border-neutral-200 lg:block">
+                  <Table>
+                    <TableHeader>
+                      {table.getHeaderGroups().map((header_group) => (
+                        <TableRow
+                          key={header_group.id}
+                          className="bg-neutral-50/80 hover:bg-neutral-50/80"
+                        >
+                          {header_group.headers.map((header) => (
+                            <TableHead key={header.id} className="px-4 py-3">
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(header.column.columnDef.header, header.getContext())}
+                            </TableHead>
+                          ))}
+                        </TableRow>
                       ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {is_brands_loading ? (
-                    <TableRow>
-                      <TableCell className="px-4 py-6 text-sm text-neutral-500" colSpan={5}>
-                        Loading brands...
-                      </TableCell>
-                    </TableRow>
-                  ) : table.getRowModel().rows.length === 0 ? (
-                    <TableRow>
-                      <TableCell className="px-4 py-6 text-sm text-neutral-500" colSpan={5}>
-                        No brands found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow key={row.id} className="hover:bg-neutral-50/60">
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="px-4 py-3">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {table.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id} className="hover:bg-neutral-50/60">
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id} className="px-4 py-3">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
           </section>
 
           <section className="space-y-6">
@@ -487,7 +541,9 @@ export default function AdminProductsBrandsPage() {
                         <UploadCard
                           preset="brand-logo"
                           resourceType="image"
-                          value={value ? to_cloudinary_asset(value) : null}
+                          value={
+                            typeof value === 'string' && value ? to_cloudinary_asset(value) : null
+                          }
                           onChange={(asset) => {
                             const logo_url = asset?.secure_url ?? asset?.url ?? '';
                             onChange(logo_url || undefined);
@@ -556,7 +612,7 @@ export default function AdminProductsBrandsPage() {
                   type="button"
                   onClick={handle_delete_brand}
                   disabled={!selected_brand_id || is_deleting}
-                  className="rounded border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   {is_deleting ? 'Deleting...' : 'Delete Brand'}
                 </button>
@@ -676,7 +732,11 @@ export default function AdminProductsBrandsPage() {
                             <UploadCard
                               preset="brand-logo"
                               resourceType="image"
-                              value={value ? to_cloudinary_asset(value) : null}
+                              value={
+                                typeof value === 'string' && value
+                                  ? to_cloudinary_asset(value)
+                                  : null
+                              }
                               onChange={(asset) => {
                                 const logo_url = asset?.secure_url ?? asset?.url ?? '';
                                 onChange(logo_url || undefined);
@@ -803,7 +863,11 @@ export default function AdminProductsBrandsPage() {
                             <UploadCard
                               preset="brand-logo"
                               resourceType="image"
-                              value={value ? to_cloudinary_asset(value) : null}
+                              value={
+                                typeof value === 'string' && value
+                                  ? to_cloudinary_asset(value)
+                                  : null
+                              }
                               onChange={(asset) => {
                                 const logo_url = asset?.secure_url ?? asset?.url ?? '';
                                 onChange(logo_url || undefined);

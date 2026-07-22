@@ -45,6 +45,51 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "typecheck-brand-form-types",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "typecheck-brand-form-types-final",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "typecheck-brand-mobile-responsiveness",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
 		}
 	]
 }
