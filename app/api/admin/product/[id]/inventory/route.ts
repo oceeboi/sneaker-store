@@ -14,6 +14,11 @@ import connect_to_database from '@/lib/db';
 import { AuditAction } from '@/models/Auditlog';
 import InventoryMovement from '@/models/InventoryMovement';
 import Product from '@/models/Product';
+import {
+  adminProductInventoryMutationSchema,
+  adminProductInventoryQuerySchema,
+} from '@/modules/products/schemas/admin-product-inventory.schemas';
+import { formatValidationIssues } from '@/modules/products/services/admin-product-route-helpers';
 import { InventoryMovementReason } from '@/types/shared/product';
 
 async function get_product_id(ctx: RouteContext<'/api/admin/product/[id]/inventory'>) {
@@ -21,14 +26,10 @@ async function get_product_id(ctx: RouteContext<'/api/admin/product/[id]/invento
   return id;
 }
 
-function parse_positive_int(value: string | null, fallback: number, max: number) {
-  if (!value) return fallback;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
-  return Math.min(parsed, max);
-}
-
-export async function GET(req: NextRequest, ctx: RouteContext<'/api/admin/product/[id]/inventory'>) {
+export async function GET(
+  req: NextRequest,
+  ctx: RouteContext<'/api/admin/product/[id]/inventory'>
+) {
   const authorization = await requirePermission(Permission.PRODUCTS_READ);
   if (!authorization.ok) return authorization.response;
 
@@ -37,7 +38,14 @@ export async function GET(req: NextRequest, ctx: RouteContext<'/api/admin/produc
     return err('Invalid product id', 400);
   }
 
-  const limit = parse_positive_int(req.nextUrl.searchParams.get('limit'), 50, 200);
+  const queryValidation = adminProductInventoryQuerySchema.safeParse({
+    limit: req.nextUrl.searchParams.get('limit') ?? undefined,
+  });
+  if (!queryValidation.success) {
+    return formatValidationIssues(queryValidation.error.issues);
+  }
+
+  const limit = queryValidation.data.limit ?? 50;
 
   await connect_to_database();
 
@@ -98,27 +106,18 @@ export async function POST(
   }
 
   const request_body = await req.json().catch(() => null);
-  if (!request_body || typeof request_body !== 'object') {
-    return err('Invalid request body', 400);
+  const bodyValidation = adminProductInventoryMutationSchema.safeParse(request_body);
+  if (!bodyValidation.success) {
+    return formatValidationIssues(bodyValidation.error.issues);
   }
 
-  const operation =
-    typeof request_body.operation === 'string' ? request_body.operation.toLowerCase() : '';
-  const size = typeof request_body.size === 'string' ? request_body.size.trim() : '';
-  const quantity = Number(request_body.quantity ?? request_body.quantityDelta);
-  const note = typeof request_body.note === 'string' ? request_body.note.trim() : null;
-  const reference_id =
-    typeof request_body.referenceId === 'string' ? request_body.referenceId.trim() : null;
-  const reference_type =
-    typeof request_body.referenceType === 'string' ? request_body.referenceType.trim() : null;
-
-  if (!size) {
-    return err('Size is required', 422);
-  }
-
-  if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
-    return err('Quantity must be a positive integer', 422);
-  }
+  const payload = bodyValidation.data;
+  const operation = payload.operation;
+  const size = payload.size;
+  const quantity = payload.quantity;
+  const note = payload.note ?? null;
+  const reference_id = payload.referenceId ?? null;
+  const reference_type = payload.referenceType ?? null;
 
   await connect_to_database();
 

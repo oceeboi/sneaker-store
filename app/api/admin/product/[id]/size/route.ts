@@ -1,51 +1,20 @@
 // app/api/admin/product/[id]/size/route.ts
 import { Types } from 'mongoose';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 
 import { Permission } from '@/config/rbac';
-import { err, ok, requestMeta, validationErr, writeAuditLog } from '@/lib/auth/response';
+import { err, ok, requestMeta, writeAuditLog } from '@/lib/auth/response';
 import { requirePermission } from '@/lib/authorize.middleware';
 import connect_to_database from '@/lib/db';
 import { AuditAction } from '@/models/Auditlog';
 import Product from '@/models/Product';
+import {
+  adminProductSizeCreateSchema,
+  adminProductSizeDeleteQuerySchema,
+  adminProductSizeUpdateSchema,
+} from '@/modules/products/schemas/admin-product-size.schemas';
+import { formatValidationIssues } from '@/modules/products/services/admin-product-route-helpers';
 import { ISizeOption } from '@/types/shared/product';
-
-// ─── Validation ───────────────────────────────────────────────────────────────
-// Deliberately excludes reservedQuantity — that field is system-managed
-// (touched only by checkout-initialize / webhook / release-cron), never by
-// direct admin edit. Keeping it out of the schema means it's not just
-// "ignored", it's structurally impossible to set through this route.
-
-const addSizeSchema = z.object({
-  size: z.string().trim().min(1).max(20),
-  sku: z.string().trim().max(120).nullable().optional(),
-  barcode: z.string().trim().max(120).nullable().optional(),
-  stockQuantity: z.number().int().min(0),
-  reorderLevel: z.number().int().min(0).optional(),
-  active: z.boolean().optional(),
-});
-
-const updateSizeSchema = z.object({
-  sizeId: z.string().min(1),
-  size: z.string().trim().min(1).max(20).optional(),
-  sku: z.string().trim().max(120).nullable().optional(),
-  barcode: z.string().trim().max(120).nullable().optional(),
-  stockQuantity: z.number().int().min(0).optional(),
-  reorderLevel: z.number().int().min(0).optional(),
-  active: z.boolean().optional(),
-});
-
-function format_validation_issues(issues: { path: PropertyKey[]; message: string }[]) {
-  return validationErr(
-    issues.map((issue) => ({
-      path: issue.path.map((segment) =>
-        typeof segment === 'symbol' ? segment.toString() : segment
-      ) as (string | number)[],
-      message: issue.message,
-    }))
-  );
-}
 
 function get_size_id(size_option: ISizeOption) {
   const maybe_size_with_id = size_option as ISizeOption & { _id?: unknown };
@@ -117,9 +86,9 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/admin/produ
   }
 
   const request_body = await req.json().catch(() => null);
-  const validation_result = addSizeSchema.safeParse(request_body);
+  const validation_result = adminProductSizeCreateSchema.safeParse(request_body);
   if (!validation_result.success) {
-    return format_validation_issues(validation_result.error.issues);
+    return formatValidationIssues(validation_result.error.issues);
   }
 
   const payload = validation_result.data;
@@ -190,9 +159,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/admin/prod
   }
 
   const request_body = await req.json().catch(() => null);
-  const validation_result = updateSizeSchema.safeParse(request_body);
+  const validation_result = adminProductSizeUpdateSchema.safeParse(request_body);
   if (!validation_result.success) {
-    return format_validation_issues(validation_result.error.issues);
+    return formatValidationIssues(validation_result.error.issues);
   }
 
   const { sizeId, ...updates } = validation_result.data;
@@ -271,10 +240,14 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/admin/pro
     return err('Invalid product id', 400);
   }
 
-  const sizeId = req.nextUrl.searchParams.get('sizeId');
-  if (!sizeId || !Types.ObjectId.isValid(sizeId)) {
-    return err('Valid sizeId is required', 400);
+  const delete_query_validation = adminProductSizeDeleteQuerySchema.safeParse({
+    sizeId: req.nextUrl.searchParams.get('sizeId') ?? '',
+  });
+  if (!delete_query_validation.success) {
+    return formatValidationIssues(delete_query_validation.error.issues);
   }
+
+  const sizeId = delete_query_validation.data.sizeId;
 
   await connect_to_database();
 

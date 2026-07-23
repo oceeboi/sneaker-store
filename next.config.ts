@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'picsum.photos',
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
     ], // only if you use TradingView images.  The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.
   },
   allowedDevOrigins: ['galleria-primp-bolt.ngrok-free.dev'],

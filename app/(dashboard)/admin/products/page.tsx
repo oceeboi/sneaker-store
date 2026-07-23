@@ -1,7 +1,7 @@
+'use client';
+
+import { AdminProductsManager } from '@/modules/products/components/admin-products-manager';
+
 export default function AdminProductsPage() {
-  return (
-    <div>
-      <div>working here..</div>
-    </div>
-  );
+  return <AdminProductsManager />;
 }
