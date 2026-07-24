@@ -53,11 +53,6 @@ const ADMIN_NAVIGATION_ITEMS: AdminNavItem[] = [
         href: '/admin/products/collections',
         icon: Boxes,
       },
-      {
-        name: 'Inventory Management',
-        href: '/admin/products/inventory',
-        icon: Warehouse,
-      },
     ],
   },
   {
