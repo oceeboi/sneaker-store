@@ -17,6 +17,7 @@ import type {
   TransactionData,
   TransactionPagination,
   UpdateAdminTransactionInput,
+  AdminTransactionData,
 } from '@/services/transaction.service';
 
 type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
@@ -103,7 +104,10 @@ export function useTransactionByReferenceQuery(
 
 export function useAdminTransactionsQuery(
   params?: GetAdminTransactionsParams,
-  options?: QueryOptionsOf<{ transactions: TransactionData[]; pagination: TransactionPagination }>
+  options?: QueryOptionsOf<{
+    transactions: AdminTransactionData[];
+    pagination: TransactionPagination;
+  }>
 ) {
   return useQuery({
     queryKey: transactionKeys.adminList(params),
@@ -117,7 +121,7 @@ export function useAdminTransactionsQuery(
 
 export function useAdminTransactionQuery(
   transactionId: string,
-  options?: QueryOptionsOf<TransactionData>
+  options?: QueryOptionsOf<AdminTransactionData>
 ) {
   return useQuery({
     queryKey: transactionKeys.adminDetail(transactionId),

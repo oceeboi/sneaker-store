@@ -56,6 +56,18 @@ function serialize_order(order: {
   discount: number;
   total: number;
   currency: string;
+  shippingAddress: {
+    addressId?: { toString(): string } | null;
+    label: string | null;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    street: string;
+    city: string;
+    state: string;
+    country: string;
+    postalCode: string | null;
+  };
   status: string;
   transaction: unknown;
   cancelledAt: Date | null;
@@ -95,6 +107,18 @@ function serialize_order(order: {
     discount: order.discount,
     total: order.total,
     currency: order.currency,
+    shippingAddress: {
+      addressId: order.shippingAddress.addressId?.toString() ?? null,
+      label: order.shippingAddress.label,
+      firstName: order.shippingAddress.firstName,
+      lastName: order.shippingAddress.lastName,
+      phone: order.shippingAddress.phone,
+      street: order.shippingAddress.street,
+      city: order.shippingAddress.city,
+      state: order.shippingAddress.state,
+      country: order.shippingAddress.country,
+      postalCode: order.shippingAddress.postalCode,
+    },
     status: order.status,
     transactionId: order.transaction
       ? typeof order.transaction === 'object' && '_id' in order.transaction

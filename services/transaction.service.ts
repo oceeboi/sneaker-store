@@ -22,6 +22,19 @@ export type TransactionData = {
   updatedAt: Date;
 };
 
+export type TransactionListUser = {
+  id: string;
+  email?: string | null;
+  username?: string | null;
+  role?: string | null;
+  status?: string | null;
+};
+
+export type AdminTransactionData = TransactionData & {
+  user: TransactionListUser;
+  order?: TransactionLinkedOrder;
+};
+
 export type TransactionOrderItem = {
   productId: string;
   productName: string;
@@ -258,13 +271,13 @@ export class TransactionService {
   async getAdminTransactions(
     params?: GetAdminTransactionsParams
   ): Promise<
-    ServiceResult<{ transactions: TransactionData[]; pagination: TransactionPagination }>
+    ServiceResult<{ transactions: AdminTransactionData[]; pagination: TransactionPagination }>
   > {
     try {
       const query = this.buildQuery(this.normalizeQueryDates(params));
       const response = await this.get<{
         data: {
-          transactions: TransactionData[];
+          transactions: AdminTransactionData[];
           pagination: TransactionPagination;
         };
       }>(`admin/transactions${query}`);
@@ -278,14 +291,16 @@ export class TransactionService {
     }
   }
 
-  async getAdminTransactionById(transactionId: string): Promise<ServiceResult<TransactionData>> {
+  async getAdminTransactionById(
+    transactionId: string
+  ): Promise<ServiceResult<AdminTransactionData>> {
     const normalizedTransactionId = transactionId.trim();
     if (!normalizedTransactionId) {
       return { success: false, message: 'Transaction id is required.' };
     }
 
     try {
-      const response = await this.get<{ data: { transaction: TransactionData } }>(
+      const response = await this.get<{ data: { transaction: AdminTransactionData } }>(
         `admin/transactions/${encodeURIComponent(normalizedTransactionId)}`
       );
 

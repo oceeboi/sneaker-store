@@ -38,6 +38,30 @@ function format_validation_issues(issues: { path: PropertyKey[]; message: string
   );
 }
 
+function serialize_user_ref(user: unknown) {
+  if (!user) return null;
+
+  if (typeof user === 'object' && '_id' in user) {
+    const populated_user = user as {
+      _id: { toString(): string };
+      email?: string;
+      username?: string;
+      role?: string;
+      status?: string;
+    };
+
+    return {
+      id: populated_user._id.toString(),
+      email: populated_user.email ?? null,
+      username: populated_user.username ?? null,
+      role: populated_user.role ?? null,
+      status: populated_user.status ?? null,
+    };
+  }
+
+  return { id: String(user) };
+}
+
 function serialize_transaction(transaction: {
   _id: { toString(): string };
   order: unknown;
@@ -61,10 +85,7 @@ function serialize_transaction(transaction: {
       typeof transaction.order === 'object' && transaction.order && '_id' in transaction.order
         ? (transaction.order as { _id: { toString(): string } })._id.toString()
         : String(transaction.order),
-    userId:
-      typeof transaction.user === 'object' && transaction.user && '_id' in transaction.user
-        ? (transaction.user as { _id: { toString(): string } })._id.toString()
-        : String(transaction.user),
+    user: serialize_user_ref(transaction.user),
     reference: transaction.reference,
     paystackReference: transaction.paystackReference,
     amount: transaction.amount,

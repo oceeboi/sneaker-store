@@ -70,6 +70,7 @@ export type AdminOrderSummaryData = OrderSummaryData & {
 
 export type AdminOrderDetailData = AdminOrderSummaryData & {
   items: AdminOrderItem[];
+  shippingAddress: UserOrderShippingAddress;
 };
 
 export type UserOrderDetailData = OrderSummaryData & {

@@ -18,7 +18,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isPublicRoute(pathname)) return <>{children}</>;
 
-  if (status === 'loading') return <div>Loading...</div>;
+  // todo: i need to make this part much better
+
+  if (status === 'loading') return <div className="">Loading...</div>;
   if (status === 'unauthenticated') return null;
 
   return <>{children}</>;

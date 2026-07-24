@@ -29,6 +29,30 @@ function format_validation_issues(issues: { path: PropertyKey[]; message: string
   );
 }
 
+function serialize_user_ref(user: unknown) {
+  if (!user) return null;
+
+  if (typeof user === 'object' && '_id' in user) {
+    const populated_user = user as {
+      _id: { toString(): string };
+      email?: string;
+      username?: string;
+      role?: string;
+      status?: string;
+    };
+
+    return {
+      id: populated_user._id.toString(),
+      email: populated_user.email ?? null,
+      username: populated_user.username ?? null,
+      role: populated_user.role ?? null,
+      status: populated_user.status ?? null,
+    };
+  }
+
+  return { id: String(user) };
+}
+
 function serialize_transaction(transaction: {
   _id: { toString(): string };
   order: unknown;
@@ -46,16 +70,14 @@ function serialize_transaction(transaction: {
   createdAt: Date;
   updatedAt: Date;
 }) {
+  const order = transaction.order;
   return {
     id: transaction._id.toString(),
     orderId:
       typeof transaction.order === 'object' && transaction.order && '_id' in transaction.order
         ? (transaction.order as { _id: { toString(): string } })._id.toString()
         : String(transaction.order),
-    userId:
-      typeof transaction.user === 'object' && transaction.user && '_id' in transaction.user
-        ? (transaction.user as { _id: { toString(): string } })._id.toString()
-        : String(transaction.user),
+    user: serialize_user_ref(transaction.user),
     reference: transaction.reference,
     paystackReference: transaction.paystackReference,
     amount: transaction.amount,
@@ -68,6 +90,89 @@ function serialize_transaction(transaction: {
     failureReason: transaction.failureReason,
     createdAt: transaction.createdAt,
     updatedAt: transaction.updatedAt,
+    order:
+      typeof order === 'object' && order && '_id' in order
+        ? {
+            id: (order as { _id: { toString(): string } })._id.toString(),
+            orderNumber: (order as { orderNumber?: string }).orderNumber ?? '',
+            status: (order as { status?: string }).status ?? 'pending_payment',
+            total: (order as { total?: number }).total ?? 0,
+            currency: (order as { currency?: string }).currency ?? 'NGN',
+            createdAt: (order as { createdAt?: Date }).createdAt ?? transaction.createdAt,
+            items: ((order as { items?: unknown[] }).items ?? []).map((item) => ({
+              productId:
+                typeof item === 'object' && item && 'product' in item
+                  ? typeof (item as { product: unknown }).product === 'object' &&
+                    (item as { product: unknown }).product &&
+                    '_id' in ((item as { product: unknown }).product as object)
+                    ? (item as { product: { _id: { toString(): string } } }).product._id.toString()
+                    : String((item as { product: unknown }).product)
+                  : '',
+              productName:
+                typeof item === 'object' && item && 'product' in item
+                  ? typeof (item as { product: unknown }).product === 'object' &&
+                    (item as { product: unknown }).product &&
+                    'name' in ((item as { product: unknown }).product as object)
+                    ? ((item as { product: { name?: string } }).product.name ??
+                      (item as { name?: string }).name ??
+                      'Item')
+                    : ((item as { name?: string }).name ?? 'Item')
+                  : 'Item',
+              sizeId:
+                typeof item === 'object' && item && 'sizeId' in item
+                  ? (item as { sizeId: { toString(): string } }).sizeId.toString()
+                  : '',
+              size:
+                typeof item === 'object' && item && 'size' in item
+                  ? (item as { size: string }).size
+                  : '',
+              sku:
+                typeof item === 'object' && item && 'sku' in item
+                  ? (item as { sku: string }).sku
+                  : '',
+              quantity:
+                typeof item === 'object' && item && 'quantity' in item
+                  ? (item as { quantity: number }).quantity
+                  : 0,
+              unitPrice:
+                typeof item === 'object' && item && 'unitPrice' in item
+                  ? (item as { unitPrice: number }).unitPrice
+                  : 0,
+              subtotal:
+                typeof item === 'object' && item && 'subtotal' in item
+                  ? (item as { subtotal: number }).subtotal
+                  : 0,
+            })),
+            shippingAddress: {
+              addressId:
+                (
+                  order as { shippingAddress?: { addressId?: { toString(): string } | null } }
+                ).shippingAddress?.addressId?.toString() ?? null,
+              label:
+                (order as { shippingAddress?: { label?: string | null } }).shippingAddress?.label ??
+                null,
+              firstName:
+                (order as { shippingAddress?: { firstName?: string } }).shippingAddress
+                  ?.firstName ?? '',
+              lastName:
+                (order as { shippingAddress?: { lastName?: string } }).shippingAddress?.lastName ??
+                '',
+              phone:
+                (order as { shippingAddress?: { phone?: string } }).shippingAddress?.phone ?? '',
+              street:
+                (order as { shippingAddress?: { street?: string } }).shippingAddress?.street ?? '',
+              city: (order as { shippingAddress?: { city?: string } }).shippingAddress?.city ?? '',
+              state:
+                (order as { shippingAddress?: { state?: string } }).shippingAddress?.state ?? '',
+              country:
+                (order as { shippingAddress?: { country?: string } }).shippingAddress?.country ??
+                '',
+              postalCode:
+                (order as { shippingAddress?: { postalCode?: string | null } }).shippingAddress
+                  ?.postalCode ?? null,
+            },
+          }
+        : null,
   };
 }
 
