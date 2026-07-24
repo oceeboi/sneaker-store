@@ -15,30 +15,36 @@ import {
   useAdminCollectionsQuery,
 } from '@/hooks/product.hook';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { UploadCard } from '@/modules/cloudinary/components';
 import {
+  useAdminProductMediaQuery,
   useAdminProductDetailQuery,
   useAdminProductInventoryQuery,
   useAdminProductsListQuery,
   useAdminProductSizesQuery,
+  useCreateAdminProductMediaMutation,
   useCreateAdminProductMutation,
   useCreateAdminProductSizeMutation,
+  useDeleteAdminProductMediaMutation,
   useDeleteAdminProductMutation,
   useDeleteAdminProductSizeMutation,
   useMutateAdminProductInventoryMutation,
   useReplaceAdminProductMutation,
+  useUpdateAdminProductMediaMutation,
   useUpdateAdminProductMutation,
   useUpdateAdminProductSizeMutation,
 } from '@/modules/products/hooks';
 import { adminProductFormSchema } from '@/modules/products/schemas';
 import type {
+  AdminProductMediaCreateInput,
+  AdminProductMediaUpdateInput,
+} from '@/modules/products/schemas/admin-product-media.schemas';
+import type { AdminProductCreateInput } from '@/modules/products/schemas/admin-product.schemas';
+import type {
   AdminProductSizeCreateInput,
   AdminProductSizeUpdateInput,
 } from '@/modules/products/schemas/admin-product-size.schemas';
-import type {
-  AdminInventoryOperationInput,
-  CreateProductInput,
-  ProductData,
-} from '@/services/product.service';
+import type { AdminInventoryOperationInput, ProductData } from '@/services/product.service';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createColumnHelper,
@@ -47,17 +53,22 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
-import { GENDER_OPTIONS, PRODUCT_TYPE_OPTIONS } from '../constants/admin-product.constants';
+import {
+  GENDER_OPTIONS,
+  MEDIA_TYPE_OPTIONS,
+  PRODUCT_TYPE_OPTIONS,
+} from '../constants/admin-product.constants';
 import type { ProductFormValues, ProductOption } from '../types/admin-product.types';
 import {
   formatDate,
   formatPrice,
   parseCsvInput,
   productToFormValues,
+  toCloudinaryAsset,
   toCreatePayload,
   toUpdatePayload,
 } from '../utils/admin-product.utils';
@@ -112,14 +123,33 @@ const createSizeSchema = z.object({
 type CreateSizeValues = z.infer<typeof createSizeSchema>;
 type CreateSizeFormValues = z.input<typeof createSizeSchema>;
 
+const createMediaSchema = z.object({
+  url: z.string().trim().url('Media url must be a valid URL'),
+  alt: z.string().trim().min(1, 'Alt text is required').max(200),
+  type: z.enum(['image', 'video']),
+  order: z.coerce.number().int().min(0),
+});
+
+type CreateMediaValues = z.infer<typeof createMediaSchema>;
+type CreateMediaFormValues = z.input<typeof createMediaSchema>;
+
 type InventoryOperationValues = AdminInventoryOperationInput;
 
-type WorkspaceTab = 'details' | 'sizes' | 'inventory';
+type WorkspaceTab = 'details' | 'sizes' | 'media' | 'inventory';
 
 function toNullableString(value: string | null | undefined) {
   if (typeof value !== 'string') return null;
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function toOptionalPriceValue(value: unknown) {
+  if (value === '' || value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function SizeDraftRow({
@@ -256,6 +286,101 @@ function SizeDraftRow({
   );
 }
 
+function MediaDraftRow({
+  draft,
+  onChange,
+  onSave,
+  onDelete,
+  saving,
+  deleting,
+  disabled,
+}: {
+  draft: AdminProductMediaUpdateInput & { id: string };
+  onChange: (next: AdminProductMediaUpdateInput & { id: string }) => void;
+  onSave: () => void;
+  onDelete: () => void;
+  saving: boolean;
+  deleting: boolean;
+  disabled: boolean;
+}) {
+  return (
+    <article className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+      <div className="grid gap-3">
+        <UploadCard
+          preset="product-media"
+          resourceType={draft.type ?? 'image'}
+          value={draft.url ? toCloudinaryAsset(draft.url) : null}
+          onChange={(asset) => {
+            onChange({
+              ...draft,
+              url: asset?.secure_url ?? '',
+            });
+          }}
+          disabled={disabled}
+        />
+
+        <Field label="Alt Text" xx={true}>
+          <Input
+            value={draft.alt ?? ''}
+            onChange={(event) => onChange({ ...draft, alt: event.target.value })}
+            disabled={disabled}
+          />
+        </Field>
+
+        <Field label="Media Type" xx={true}>
+          <OptionPicker
+            value={draft.type ?? 'image'}
+            options={MEDIA_TYPE_OPTIONS.map((value) => ({ value, label: value }))}
+            onChange={(next) => {
+              const selected = Array.isArray(next) ? (next[0] ?? 'image') : next;
+              onChange({
+                ...draft,
+                type: selected === 'video' ? 'video' : 'image',
+              });
+            }}
+            placeholder="Select media type"
+            disabled={disabled}
+          />
+        </Field>
+
+        <Field label="Display Order" xx={false}>
+          <Input
+            type="number"
+            min={0}
+            value={draft.order ?? 0}
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                order: Number.isFinite(Number(event.target.value)) ? Number(event.target.value) : 0,
+              })
+            }
+            disabled={disabled}
+          />
+        </Field>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={disabled || saving || deleting}
+          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {saving ? 'Saving...' : 'Save media'}
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={disabled || saving || deleting}
+          className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {deleting ? 'Deleting...' : 'Delete media'}
+        </button>
+      </div>
+    </article>
+  );
+}
+
 function SelectField({
   label,
   required = false,
@@ -283,6 +408,38 @@ function SelectField({
         disabled={disabled}
       />
     </Field>
+  );
+}
+
+function CsvDraftInput({
+  value,
+  onCommit,
+  disabled,
+  placeholder,
+  hasError,
+}: {
+  value: string[];
+  onCommit: (nextValues: string[]) => void;
+  disabled: boolean;
+  placeholder: string;
+  hasError: boolean;
+}) {
+  const [draftValue, setDraftValue] = useState((value ?? []).join(', '));
+
+  useEffect(() => {
+    setDraftValue((value ?? []).join(', '));
+  }, [value]);
+
+  return (
+    <Input
+      type="text"
+      placeholder={placeholder}
+      value={draftValue}
+      onChange={(event) => setDraftValue(event.target.value)}
+      onBlur={() => onCommit(parseCsvInput(draftValue))}
+      hasError={hasError}
+      disabled={disabled}
+    />
   );
 }
 
@@ -457,7 +614,7 @@ function ProductCoreFields({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Field label="Currency" error={errors.pricing?.currency?.message} delay={100} xx={false}>
+        <Field label="Currency" error={errors.pricing?.currency?.message} delay={100} xx={true}>
           <Input
             {...form.register('pricing.currency')}
             type="text"
@@ -470,7 +627,9 @@ function ProductCoreFields({
 
         <Field label="Base Price" error={errors.pricing?.basePrice?.message} delay={100} xx={true}>
           <Input
-            {...form.register('pricing.basePrice', { valueAsNumber: true })}
+            {...form.register('pricing.basePrice', {
+              setValueAs: (value) => (value === '' ? undefined : Number(value)),
+            })}
             type="number"
             min={0}
             placeholder="Base price"
@@ -480,19 +639,46 @@ function ProductCoreFields({
           />
         </Field>
       </div>
-
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Field
+          label="Compare Price"
+          error={errors.pricing?.compareAtPrice?.message}
+          delay={100}
+          xx={false}
+        >
+          <Input
+            {...form.register('pricing.compareAtPrice', { setValueAs: toOptionalPriceValue })}
+            type="number"
+            min={0}
+            placeholder="Compare price"
+            autoComplete="off"
+            hasError={Boolean(errors.pricing?.compareAtPrice)}
+            disabled={disabled}
+          />
+        </Field>
+        <Field label="Cost Price" error={errors.pricing?.costPrice?.message} delay={100} xx={false}>
+          <Input
+            {...form.register('pricing.costPrice', { setValueAs: toOptionalPriceValue })}
+            type="number"
+            min={0}
+            placeholder="Cost price"
+            autoComplete="off"
+            hasError={Boolean(errors.pricing?.costPrice)}
+            disabled={disabled}
+          />
+        </Field>
+      </div>
       <Controller
         name="tags"
         control={form.control}
         render={({ field, fieldState }) => (
           <Field label="Tags" error={fieldState.error?.message} delay={100} xx={false}>
-            <Input
-              type="text"
-              placeholder="Comma-separated tags"
-              value={(field.value ?? []).join(', ')}
-              onChange={(event) => field.onChange(parseCsvInput(event.target.value))}
-              hasError={Boolean(fieldState.error)}
+            <CsvDraftInput
+              value={field.value ?? []}
+              onCommit={field.onChange}
               disabled={disabled}
+              placeholder="Comma-separated tags"
+              hasError={Boolean(fieldState.error)}
             />
           </Field>
         )}
@@ -535,6 +721,12 @@ export function AdminProductsManager() {
   } = useAdminProductSizesQuery(selectedProductId ?? '');
 
   const {
+    data: mediaData,
+    isLoading: isMediaLoading,
+    error: mediaError,
+  } = useAdminProductMediaQuery(selectedProductId ?? '');
+
+  const {
     data: inventoryData,
     isLoading: isInventoryLoading,
     error: inventoryError,
@@ -553,6 +745,10 @@ export function AdminProductsManager() {
   const { mutate: createSize, isPending: isCreatingSize } = useCreateAdminProductSizeMutation();
   const { mutate: updateSize, isPending: isUpdatingSize } = useUpdateAdminProductSizeMutation();
   const { mutate: deleteSize, isPending: isDeletingSize } = useDeleteAdminProductSizeMutation();
+
+  const { mutate: createMedia, isPending: isCreatingMedia } = useCreateAdminProductMediaMutation();
+  const { mutate: updateMedia, isPending: isUpdatingMedia } = useUpdateAdminProductMediaMutation();
+  const { mutate: deleteMedia, isPending: isDeletingMedia } = useDeleteAdminProductMediaMutation();
 
   const { mutate: applyInventoryOperation, isPending: isApplyingInventoryOp } =
     useMutateAdminProductInventoryMutation();
@@ -579,6 +775,16 @@ export function AdminProductsManager() {
     },
   });
 
+  const createMediaForm = useForm<CreateMediaFormValues, unknown, CreateMediaValues>({
+    resolver: zodResolver(createMediaSchema),
+    defaultValues: {
+      url: '',
+      alt: '',
+      type: 'image',
+      order: 0,
+    },
+  });
+
   const inventoryForm = useForm<InventoryOperationValues>({
     defaultValues: {
       operation: 'adjust_add',
@@ -598,6 +804,10 @@ export function AdminProductsManager() {
         reservedQuantity: number;
       }
     >
+  >([]);
+
+  const [mediaDrafts, setMediaDrafts] = useState<
+    Array<AdminProductMediaUpdateInput & { id: string }>
   >([]);
 
   const products = listData?.products ?? [];
@@ -681,8 +891,21 @@ export function AdminProductsManager() {
     setSizeDrafts(nextDrafts);
   }, [sizeData?.sizes]);
 
+  useEffect(() => {
+    const nextDrafts = (mediaData?.media ?? []).map((media) => ({
+      id: media.id,
+      mediaId: media.id,
+      url: media.url,
+      alt: media.alt,
+      type: media.type,
+      order: media.order,
+    }));
+
+    setMediaDrafts(nextDrafts);
+  }, [mediaData?.media]);
+
   function onCreateProduct(values: ProductFormValues) {
-    const payload = toCreatePayload(values as CreateProductInput);
+    const payload = toCreatePayload(values as AdminProductCreateInput);
 
     createProduct(payload, {
       onSuccess: (product) => {
@@ -703,7 +926,7 @@ export function AdminProductsManager() {
       return;
     }
 
-    const normalized = toCreatePayload(values as CreateProductInput);
+    const normalized = toCreatePayload(values as AdminProductCreateInput);
     const payload = toUpdatePayload(normalized, manageForm.formState.dirtyFields);
 
     if (Object.keys(payload).length === 0) {
@@ -727,7 +950,7 @@ export function AdminProductsManager() {
     if (!selectedProductId) return;
 
     replaceProduct(
-      { productId: selectedProductId, data: toCreatePayload(values as CreateProductInput) },
+      { productId: selectedProductId, data: toCreatePayload(values as AdminProductCreateInput) },
       {
         onSuccess: (product) => {
           toast.success('Product replaced successfully.');
@@ -786,6 +1009,66 @@ export function AdminProductsManager() {
             active: true,
           });
         },
+        onError: (error) => toast.error(error.message),
+      }
+    );
+  }
+
+  function onCreateMedia(values: CreateMediaValues) {
+    if (!selectedProductId) {
+      toast.error('Select a product first.');
+      return;
+    }
+
+    const payload: AdminProductMediaCreateInput = {
+      url: values.url,
+      alt: values.alt,
+      type: values.type,
+      order: values.order,
+    };
+
+    createMedia(
+      { productId: selectedProductId, data: payload },
+      {
+        onSuccess: () => {
+          toast.success('Media added successfully.');
+          createMediaForm.reset({ url: '', alt: '', type: 'image', order: 0 });
+        },
+        onError: (error) => toast.error(error.message),
+      }
+    );
+  }
+
+  function onSaveMediaDraft(draft: AdminProductMediaUpdateInput & { id: string }) {
+    if (!selectedProductId || !draft.mediaId) return;
+
+    const payload: AdminProductMediaUpdateInput = {
+      mediaId: draft.mediaId,
+      url: draft.url,
+      alt: draft.alt,
+      type: draft.type,
+      order: draft.order,
+    };
+
+    updateMedia(
+      { productId: selectedProductId, data: payload },
+      {
+        onSuccess: () => toast.success('Media updated successfully.'),
+        onError: (error) => toast.error(error.message),
+      }
+    );
+  }
+
+  function onDeleteMedia(mediaId: string) {
+    if (!selectedProductId) return;
+
+    const confirmed = window.confirm('Delete this media asset from product gallery?');
+    if (!confirmed) return;
+
+    deleteMedia(
+      { productId: selectedProductId, mediaId },
+      {
+        onSuccess: () => toast.success('Media deleted successfully.'),
         onError: (error) => toast.error(error.message),
       }
     );
@@ -1093,6 +1376,18 @@ export function AdminProductsManager() {
                 disabled={!selectedProductId}
               >
                 Inventory
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('media')}
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  activeTab === 'media'
+                    ? 'bg-black text-white'
+                    : 'border border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                }`}
+                disabled={!selectedProductId}
+              >
+                Media
               </button>
             </div>
           </div>
@@ -1471,6 +1766,115 @@ export function AdminProductsManager() {
                 </>
               ) : (
                 <p className="text-sm text-neutral-500">Select a product to inspect inventory.</p>
+              )}
+            </div>
+          ) : null}
+
+          {activeTab === 'media' ? (
+            <div className="space-y-5">
+              <article className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
+                <h4 className="text-base font-semibold text-neutral-900">Add Media</h4>
+                <p className="mb-4 text-sm text-neutral-500">
+                  Upload product gallery assets with explicit ordering and metadata.
+                </p>
+
+                <form
+                  onSubmit={createMediaForm.handleSubmit(onCreateMedia)}
+                  className="grid gap-3 md:grid-cols-2"
+                >
+                  <Controller
+                    name="url"
+                    control={createMediaForm.control}
+                    render={({ field }) => (
+                      <Field label="Media File" xx={true}>
+                        <UploadCard
+                          preset="product-media"
+                          resourceType={createMediaForm.watch('type')}
+                          value={field.value ? toCloudinaryAsset(field.value) : null}
+                          onChange={(asset) => field.onChange(asset?.secure_url ?? '')}
+                          disabled={!selectedProductId || isCreatingMedia}
+                        />
+                      </Field>
+                    )}
+                  />
+
+                  <Field label="Alt Text" xx={true}>
+                    <Input
+                      {...createMediaForm.register('alt')}
+                      disabled={!selectedProductId || isCreatingMedia}
+                    />
+                  </Field>
+
+                  <Controller
+                    name="type"
+                    control={createMediaForm.control}
+                    render={({ field }) => (
+                      <Field label="Media Type" xx={true}>
+                        <OptionPicker
+                          value={field.value}
+                          options={MEDIA_TYPE_OPTIONS.map((value) => ({ value, label: value }))}
+                          onChange={(next) =>
+                            field.onChange(Array.isArray(next) ? (next[0] ?? 'image') : next)
+                          }
+                          placeholder="Select media type"
+                          disabled={!selectedProductId || isCreatingMedia}
+                        />
+                      </Field>
+                    )}
+                  />
+
+                  <Field label="Display Order" xx={false}>
+                    <Input
+                      type="number"
+                      min={0}
+                      {...createMediaForm.register('order', { valueAsNumber: true })}
+                      disabled={!selectedProductId || isCreatingMedia}
+                    />
+                  </Field>
+
+                  <div className="md:col-span-2">
+                    <button
+                      type="submit"
+                      disabled={!selectedProductId || isCreatingMedia}
+                      className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isCreatingMedia ? 'Adding...' : 'Add Media'}
+                    </button>
+                  </div>
+                </form>
+              </article>
+
+              {mediaError ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {mediaError.message}
+                </p>
+              ) : null}
+
+              {isMediaLoading ? (
+                <p className="text-sm text-neutral-500">Loading media...</p>
+              ) : mediaDrafts.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-neutral-300 p-5 text-sm text-neutral-500">
+                  No media found for this product.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {mediaDrafts.map((draft) => (
+                    <MediaDraftRow
+                      key={draft.id}
+                      draft={draft}
+                      onChange={(next) =>
+                        setMediaDrafts((prev) =>
+                          prev.map((item) => (item.id === next.id ? next : item))
+                        )
+                      }
+                      onSave={() => onSaveMediaDraft(draft)}
+                      onDelete={() => onDeleteMedia(draft.id)}
+                      saving={isUpdatingMedia}
+                      deleting={isDeletingMedia}
+                      disabled={!selectedProductId}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           ) : null}

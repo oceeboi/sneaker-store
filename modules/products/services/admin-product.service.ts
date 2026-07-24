@@ -26,6 +26,12 @@ import {
   type AdminProductSizeCreateInput,
   type AdminProductSizeUpdateInput,
 } from '../schemas/admin-product-size.schemas';
+import {
+  adminProductMediaCreateSchema,
+  adminProductMediaUpdateSchema,
+  type AdminProductMediaCreateInput,
+  type AdminProductMediaUpdateInput,
+} from '../schemas/admin-product-media.schemas';
 
 type ServiceResult<T> = { success: true; data: T } | { success: false; message: string };
 
@@ -52,6 +58,14 @@ export type AdminProductSizeData = {
   availableQuantity: number;
   reorderLevel: number;
   active: boolean;
+};
+
+export type AdminProductMediaData = {
+  id: string;
+  url: string;
+  alt: string;
+  type: 'image' | 'video';
+  order: number;
 };
 
 export class AdminProductService {
@@ -258,6 +272,100 @@ export class AdminProductService {
       return {
         success: false,
         message: AdminProductService.fromHttpError(error, 'Failed to fetch product sizes.'),
+      };
+    }
+  }
+
+  async getAdminProductMedia(
+    productId: string
+  ): Promise<ServiceResult<{ media: AdminProductMediaData[] }>> {
+    const normalizedProductId = productId.trim();
+    if (!normalizedProductId) return { success: false, message: 'Product id is required.' };
+
+    try {
+      const response = await this.get<{ data: { media: AdminProductMediaData[] } }>(
+        `admin/product/${encodeURIComponent(normalizedProductId)}/media`
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: AdminProductService.fromHttpError(error, 'Failed to fetch product media.'),
+      };
+    }
+  }
+
+  async createAdminProductMedia(
+    productId: string,
+    data: AdminProductMediaCreateInput
+  ): Promise<ServiceResult<{ media: AdminProductMediaData }>> {
+    const normalizedProductId = productId.trim();
+    if (!normalizedProductId) return { success: false, message: 'Product id is required.' };
+
+    const validation = adminProductMediaCreateSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, message: validation.error.issues.map((i) => i.message).join(', ') };
+    }
+
+    try {
+      const response = await this.post<{ data: { media: AdminProductMediaData } }>(
+        `admin/product/${encodeURIComponent(normalizedProductId)}/media`,
+        validation.data
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: AdminProductService.fromHttpError(error, 'Failed to create product media.'),
+      };
+    }
+  }
+
+  async updateAdminProductMedia(
+    productId: string,
+    data: AdminProductMediaUpdateInput
+  ): Promise<ServiceResult<{ media: AdminProductMediaData }>> {
+    const normalizedProductId = productId.trim();
+    if (!normalizedProductId) return { success: false, message: 'Product id is required.' };
+
+    const validation = adminProductMediaUpdateSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, message: validation.error.issues.map((i) => i.message).join(', ') };
+    }
+
+    try {
+      const response = await this.patch<{ data: { media: AdminProductMediaData } }>(
+        `admin/product/${encodeURIComponent(normalizedProductId)}/media`,
+        validation.data
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: AdminProductService.fromHttpError(error, 'Failed to update product media.'),
+      };
+    }
+  }
+
+  async deleteAdminProductMedia(
+    productId: string,
+    mediaId: string
+  ): Promise<ServiceResult<{ deleted: boolean; mediaId: string }>> {
+    const normalizedProductId = productId.trim();
+    if (!normalizedProductId) return { success: false, message: 'Product id is required.' };
+
+    if (!mediaId.trim()) return { success: false, message: 'Media id is required.' };
+
+    try {
+      const query = this.buildQuery({ mediaId });
+      const response = await this.delete<{ data: { deleted: boolean; mediaId: string } }>(
+        `admin/product/${encodeURIComponent(normalizedProductId)}/media${query}`
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        message: AdminProductService.fromHttpError(error, 'Failed to delete product media.'),
       };
     }
   }

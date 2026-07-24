@@ -273,6 +273,90 @@
 				"$tsc"
 			],
 			"group": "test"
+		},
+		{
+			"label": "Typecheck project",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Typecheck project",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Typecheck project",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Typecheck project",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Typecheck project",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "Typecheck project",
+			"type": "shell",
+			"command": "bun",
+			"args": [
+				"run",
+				"tsc",
+				"--noEmit"
+			],
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "test"
 		}
 	]
 }

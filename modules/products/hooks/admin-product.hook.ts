@@ -14,6 +14,10 @@ import type {
   AdminProductSizeCreateInput,
   AdminProductSizeUpdateInput,
 } from '../schemas/admin-product-size.schemas';
+import type {
+  AdminProductMediaCreateInput,
+  AdminProductMediaUpdateInput,
+} from '../schemas/admin-product-media.schemas';
 import { adminProductService } from '../services/admin-product.service';
 
 export class AdminProductServiceError extends Error {
@@ -38,6 +42,7 @@ export const adminProductKeys = {
   list: (search?: string) => [...adminProductKeys.root, 'list', search ?? ''] as const,
   detail: (productId: string) => [...adminProductKeys.root, 'detail', productId] as const,
   sizeList: (productId: string) => [...adminProductKeys.root, 'sizes', productId] as const,
+  mediaList: (productId: string) => [...adminProductKeys.root, 'media', productId] as const,
   inventory: (productId: string, params?: AdminInventoryListParams) =>
     [...adminProductKeys.root, 'inventory', productId, params ?? {}] as const,
 };
@@ -121,6 +126,67 @@ export function useAdminProductSizesQuery(productId: string) {
     queryFn: async () => unwrapResult(await adminProductService.getAdminProductSizes(productId)),
     enabled: Boolean(productId),
     staleTime: 5_000,
+  });
+}
+
+export function useAdminProductMediaQuery(productId: string) {
+  return useQuery({
+    queryKey: adminProductKeys.mediaList(productId),
+    queryFn: async () => unwrapResult(await adminProductService.getAdminProductMedia(productId)),
+    enabled: Boolean(productId),
+    staleTime: 5_000,
+  });
+}
+
+export function useCreateAdminProductMediaMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      data,
+    }: {
+      productId: string;
+      data: AdminProductMediaCreateInput;
+    }) => unwrapResult(await adminProductService.createAdminProductMedia(productId, data)),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.mediaList(variables.productId) });
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.detail(variables.productId) });
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.root });
+    },
+  });
+}
+
+export function useUpdateAdminProductMediaMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      data,
+    }: {
+      productId: string;
+      data: AdminProductMediaUpdateInput;
+    }) => unwrapResult(await adminProductService.updateAdminProductMedia(productId, data)),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.mediaList(variables.productId) });
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.detail(variables.productId) });
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.root });
+    },
+  });
+}
+
+export function useDeleteAdminProductMediaMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ productId, mediaId }: { productId: string; mediaId: string }) =>
+      unwrapResult(await adminProductService.deleteAdminProductMedia(productId, mediaId)),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.mediaList(variables.productId) });
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.detail(variables.productId) });
+      queryClient.invalidateQueries({ queryKey: adminProductKeys.root });
+    },
   });
 }
 

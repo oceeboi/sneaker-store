@@ -1,5 +1,9 @@
 import type { CloudinaryAsset } from '@/modules/cloudinary/types';
 import type {
+  AdminProductCreateInput,
+  AdminProductUpdateInput,
+} from '@/modules/products/schemas/admin-product.schemas';
+import type {
   CreateProductInput,
   ProductData,
   UpdateProductInput,
@@ -124,7 +128,7 @@ export function productToFormValues(product: ProductData): CreateProductInput {
   };
 }
 
-export function toCreatePayload(values: CreateProductInput): CreateProductInput {
+export function toCreatePayload(values: CreateProductInput): AdminProductCreateInput {
   return {
     name: values.name.trim(),
     slug: trimToUndefined(values.slug),
@@ -156,17 +160,6 @@ export function toCreatePayload(values: CreateProductInput): CreateProductInput 
         order: index,
       }))
       .filter((item) => item.url.length > 0 && item.alt.length > 0),
-    sizes: (values.sizes ?? [])
-      .map((item) => ({
-        size: item.size.trim(),
-        sku: trimToNull(item.sku),
-        barcode: trimToNull(item.barcode),
-        stockQuantity: item.stockQuantity,
-        reservedQuantity: item.reservedQuantity ?? 0,
-        reorderLevel: item.reorderLevel ?? 0,
-        active: item.active ?? true,
-      }))
-      .filter((item) => item.size.length > 0),
     pricing: {
       currency: (values.pricing.currency ?? 'NGN').trim().toUpperCase(),
       basePrice: values.pricing.basePrice,
@@ -219,13 +212,13 @@ function pickDirtyValues(source: unknown, dirty: unknown): unknown {
 }
 
 export function toUpdatePayload(
-  normalizedValues: CreateProductInput,
+  normalizedValues: AdminProductCreateInput,
   dirtyFields: unknown
-): UpdateProductInput {
+): AdminProductUpdateInput {
   const picked = pickDirtyValues(normalizedValues, dirtyFields);
   if (!picked || typeof picked !== 'object') {
     return {};
   }
 
-  return picked as UpdateProductInput;
+  return picked as AdminProductUpdateInput;
 }

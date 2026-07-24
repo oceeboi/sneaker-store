@@ -52,7 +52,7 @@ const MediaSchema = new Schema<IMedia>(
     type: { type: String, enum: Object.values(MediaType), default: MediaType.IMAGE },
     order: { type: Number, default: 0 },
   },
-  { _id: false }
+  { _id: true }
 );
 
 const PricingSchema = new Schema<IPricing>(

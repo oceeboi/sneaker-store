@@ -49,6 +49,7 @@ export interface IMedia {
   alt: string;
   type: MediaType;
   order: number;
+  _id?: mongoose.Types.ObjectId;
 }
 export interface IDescription {
   narrative: string; // the editorial paragraph — brand story, collab context, design details

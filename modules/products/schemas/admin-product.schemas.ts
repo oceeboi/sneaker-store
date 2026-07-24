@@ -24,11 +24,32 @@ const productMediaSchema = z.object({
   order: z.coerce.number().int().min(0).optional(),
 });
 
+const nullableOptionalCoercedNumber = (minMessage?: string) =>
+  z.preprocess(
+    (val) => (val === '' ? null : val),
+    z.coerce
+      .number('Must be a valid number')
+      .min(0, minMessage ?? 'Price must be zero or greater')
+      .nullable()
+      .optional()
+  );
+
 const productPricingSchema = z.object({
-  currency: z.string().trim().length(3, 'Currency must be a 3-letter ISO code').optional(),
-  basePrice: z.coerce.number().min(0, 'Base price must be zero or greater'),
-  compareAtPrice: z.coerce.number().min(0).nullable().optional(),
-  costPrice: z.coerce.number().min(0).nullable().optional(),
+  currency: z
+    .string()
+    .trim()
+    .length(3, 'Currency must be a 3-letter ISO code')
+    .optional()
+    .or(z.literal('')), // Allows empty strings to safely fall back if sent from a select/input
+
+  basePrice: z.preprocess(
+    (val) => (val === '' || val === undefined ? undefined : val),
+    z.coerce
+      .number({ error: 'Base price is required' })
+      .min(0, 'Base price must be zero or greater')
+  ),
+  compareAtPrice: nullableOptionalCoercedNumber('Compare at price must be zero or greater'),
+  costPrice: nullableOptionalCoercedNumber('Cost price must be zero or greater'),
 });
 
 const productSeoSchema = z.object({
