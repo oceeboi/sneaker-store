@@ -121,7 +121,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/api/admin/order
 
   const order_id = await get_order_id(ctx);
   if (!Types.ObjectId.isValid(order_id)) {
-    return err('Invalid order id', 400);
+    return err('Order not found', 404);
   }
 
   await connect_to_database();

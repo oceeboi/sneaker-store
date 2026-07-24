@@ -140,7 +140,7 @@ export const admin_order_columns = [
     id: 'actions',
     header: '',
     cell: (props) => {
-      const orderNumber = props.row.original.orderNumber;
+      const orderNumber = props.row.original.id;
       return (
         <Button asChild variant="outline" size="sm" className="whitespace-nowrap">
           <Link href={`/admin/orders/${encodeURIComponent(orderNumber)}`}>View details</Link>
